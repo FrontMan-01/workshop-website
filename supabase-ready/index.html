@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>start.here: a free workshop, one level at a time</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Caveat:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F8F7F3;--panel:#FFFFFF;--ink:#14141A;--muted:#5C5C57;--line:#DAD8D0;--pink:#D4105A;--yellow:#E0A91F;--yshadow:#8F6508;--cyan:#38B6D8;--mint:#BFEBD3;--sun:#F6E3A8;--rose:#F8C6D4;--btn:#14141A;--btn-ink:#FFFFFF;--grid:rgba(20,20,26,.045);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171D;--panel:#1E212A;--ink:#F4F2EA;--muted:#A9AAA3;--line:#2E323D;--pink:#FF4D8D;--yellow:#F2BE3A;--yshadow:#7A5606;--btn:#F4F2EA;--btn-ink:#15171D;--grid:rgba(255,255,255,.04);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15171D;--panel:#1E212A;--ink:#F4F2EA;--muted:#A9AAA3;--line:#2E323D;--pink:#FF4D8D;--yellow:#F2BE3A;--yshadow:#7A5606;--btn:#F4F2EA;--btn-ink:#15171D;--grid:rgba(255,255,255,.04);color-scheme:dark}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 70px);scroll-behavior:smooth}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg) linear-gradient(var(--grid) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/40px 40px;color:var(--ink);font:400 1.0625rem/1.6 "Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+h1,h2,h3{font-family:"Pixelify Sans","Courier New",monospace;font-weight:700;margin:0;line-height:1}
+h2{font-size:clamp(2.4rem,7vw,5rem);letter-spacing:.01em}
+h3{font-size:1.4rem;font-weight:500}
+p{margin:0}a{color:inherit}
+svg.sp{display:block;image-rendering:pixelated;shape-rendering:crispEdges}
+:focus-visible{outline:3px solid var(--pink);outline-offset:3px;border-radius:4px}
+.wrap{width:min(1180px,100% - 2.5rem);margin-inline:auto}
+section{padding:clamp(3.5rem,9vw,6.5rem) 0}
+.note{font-family:"Caveat",cursive;font-weight:600;font-size:1.7rem;display:inline-block;position:relative;line-height:1}
+.note::after{content:"";position:absolute;left:4%;right:4%;bottom:-6px;height:5px;background:linear-gradient(var(--ink),var(--ink)) 0 0/100% 2px no-repeat;border-radius:50%;transform:rotate(-1deg)}
+.mono{font:500 .78rem ui-monospace,Menlo,Consolas,monospace;color:var(--muted);letter-spacing:.04em}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--panel);border-bottom:2px solid var(--ink)}
+.bar{display:flex;align-items:center;justify-content:space-between;height:58px;gap:.8rem}
+.logo{display:flex;align-items:center;gap:.5rem;font:700 1.05rem "Pixelify Sans",monospace;text-decoration:none}
+nav.pills{display:flex;gap:.2rem;background:var(--bg);border:2px solid var(--ink);border-radius:12px;padding:3px}
+nav.pills a{font:500 .72rem ui-monospace,Menlo,monospace;text-decoration:none;padding:.35rem .7rem;border-radius:8px;color:var(--muted)}
+nav.pills a b{opacity:.6;margin-right:.3rem}
+nav.pills a.on{background:var(--ink);color:var(--bg)}
+.hud{display:flex;align-items:center;gap:.7rem}
+.hearts{display:flex;gap:3px}
+.score{font:600 .78rem ui-monospace,Menlo,monospace;border:2px solid var(--ink);border-radius:8px;padding:.3rem .6rem;white-space:nowrap}
+.score b{color:var(--pink);font-weight:600}
+.start{display:inline-flex;align-items:center;gap:.4rem;background:var(--pink);color:#fff;font:600 .78rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em;text-decoration:none;border:2px solid var(--ink);border-radius:10px;padding:.5rem .9rem;min-height:40px;box-shadow:3px 3px 0 var(--ink);transition:transform .12s,box-shadow .12s}
+.start:hover{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.hero{position:relative;text-align:center;padding-top:clamp(3rem,8vw,5.5rem);padding-bottom:0}
+.hero .cloud{position:absolute;left:8%;top:2.5rem;opacity:.9}
+.frame{position:relative;display:inline-block;padding:clamp(.8rem,2vw,1.4rem) clamp(1rem,3vw,2rem);margin-top:.8rem;background:
+ linear-gradient(var(--cyan),var(--cyan)) 0 0/22px 3px no-repeat,linear-gradient(var(--cyan),var(--cyan)) 0 0/3px 22px no-repeat,
+ linear-gradient(var(--cyan),var(--cyan)) 100% 0/22px 3px no-repeat,linear-gradient(var(--cyan),var(--cyan)) 100% 0/3px 22px no-repeat,
+ linear-gradient(var(--cyan),var(--cyan)) 0 100%/22px 3px no-repeat,linear-gradient(var(--cyan),var(--cyan)) 0 100%/3px 22px no-repeat,
+ linear-gradient(var(--cyan),var(--cyan)) 100% 100%/22px 3px no-repeat,linear-gradient(var(--cyan),var(--cyan)) 100% 100%/3px 22px no-repeat}
+h1{font-size:clamp(3.2rem,13vw,9.5rem);letter-spacing:.01em;text-shadow:4px 4px 0 var(--line)}
+h1 span{color:var(--yellow);text-shadow:4px 4px 0 var(--yshadow)}
+.tag{font:500 .8rem ui-monospace,Menlo,monospace;color:var(--muted);margin-top:1.2rem;display:block}
+.tagline{font-size:clamp(1.2rem,3vw,1.6rem);font-weight:500;margin-top:1.4rem;min-height:2.2rem}
+.cur{display:inline-block;width:.6em;height:1.1em;background:var(--ink);vertical-align:-.18em;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.cta{display:flex;gap:1.2rem;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:1.6rem}
+.btn{display:inline-flex;align-items:center;gap:.5rem;min-height:48px;padding:.7rem 1.3rem;border-radius:12px;background:var(--btn);color:var(--btn-ink);font:600 .85rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em;text-decoration:none;border:0;cursor:pointer;transition:transform .15s}
+.btn:hover{transform:translateY(-2px)}
+.link{font:600 .85rem ui-monospace,Menlo,monospace;text-transform:uppercase;text-decoration:none;letter-spacing:.04em}
+.link:hover{text-decoration:underline}
+.stk{position:static;display:inline-flex;align-items:center;gap:.4rem;font:600 .72rem ui-monospace,Menlo,monospace;text-transform:uppercase;padding:.45rem .8rem;border-radius:6px;color:#14141A;box-shadow:0 3px 8px rgba(0,0,0,.12)}
+.stks{display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;margin-top:1.4rem}
+.s1{background:var(--sun);transform:rotate(-4deg)}.s2{background:var(--rose);transform:rotate(3deg)}.s3{background:var(--mint);transform:rotate(-2deg)}
+.ground{position:relative;margin-top:2.5rem;height:130px}
+.ground svg.hills{position:absolute;inset:auto 0 0;width:100%;height:100%}
+.mascot{position:absolute;left:10%;bottom:34px;background:none;border:0;padding:0;cursor:pointer}
+.mascot .note{position:absolute;left:62px;top:-26px;font-size:1.3rem;white-space:nowrap}
+.mascot .note::after{display:none}
+.mascot.jump svg{animation:jump .5s ease}
+@keyframes jump{40%{transform:translateY(-46px)}}
+.head{margin-bottom:2.2rem}
+.head .mono{display:block;margin-bottom:.7rem}
+.head p{color:var(--muted);margin-top:.9rem;max-width:44ch}
+.about{display:grid;gap:2.5rem;align-items:center}
+.about .head{text-align:center}
+.console{justify-self:center;width:min(300px,80vw);background:#38B6D8;border:4px solid #14141A;border-radius:22px 22px 40px 22px;padding:1rem;box-shadow:8px 8px 0 #14141A}
+.lcd{background:#B7DF45;border:4px solid #14141A;border-radius:10px;padding:1.2rem 1rem .8rem;display:grid;place-items:center;gap:.5rem;color:#14141A;font:700 .8rem "Pixelify Sans",monospace}
+.pad{display:flex;justify-content:space-between;align-items:center;margin-top:.9rem;padding:0 .4rem}
+.pad i{display:block;width:14px;height:14px;background:#14141A;border-radius:3px}
+.pad b{display:block;width:34px;height:10px;background:#14141A;border-radius:6px;opacity:.7}
+.big{font-size:clamp(1.5rem,3.4vw,2.2rem);font-weight:500;line-height:1.3;letter-spacing:-.01em}
+mark{border-radius:4px;padding:0 .2em;color:inherit}
+.m1{background:#F6E3A8}.m2{background:#BFEBD3}.m3{background:#F8C6D4}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) mark{color:#14141A}}
+:root[data-theme="dark"] mark{color:#14141A}
+.levels{border-top:2px solid var(--ink)}
+.lv{border-bottom:2px solid var(--ink)}
+.lv summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:2.4rem 1fr auto;gap:.8rem;align-items:center;padding:1.1rem .3rem;min-height:64px}
+.lv summary::-webkit-details-marker{display:none}
+.lv summary h3{font-size:clamp(1.2rem,3vw,1.7rem)}
+.lv summary:hover h3{color:var(--pink)}
+.lv .go{display:grid;place-items:center;width:38px;height:38px;border:2px solid var(--ink);border-radius:50%;font-weight:600;transition:transform .2s,background .2s}
+.lv[open] .go{transform:rotate(90deg);background:var(--ink);color:var(--bg)}
+.lv p{padding:0 .3rem 1.3rem 3.4rem;color:var(--muted);max-width:60ch}
+.lvhead{display:grid;gap:1.5rem;align-items:center;margin-bottom:2rem}
+.you{justify-self:start;text-align:center}
+.you .mono{display:block;margin-top:.5rem}
+.cards{display:grid;gap:1.6rem}
+.card{background:var(--panel);border:3px solid var(--ink);border-radius:16px;box-shadow:6px 6px 0 var(--ink);padding:1.5rem;display:flex;flex-direction:column;gap:.8rem}
+.card .ic{width:46px;height:46px;border:3px solid var(--ink);border-radius:10px;display:grid;place-items:center;font:700 1.1rem "Pixelify Sans",monospace;color:#14141A}
+.card p{color:var(--muted);flex:1}
+.hs{margin-top:2.5rem;border:3px dashed var(--ink);border-radius:16px;padding:1.6rem;text-align:center}
+.hs h3{margin-bottom:.4rem}.hs p{color:var(--muted)}
+.faq{max-width:760px;margin-inline:auto}
+.faq details{border-top:2px solid var(--ink)}
+.faq details:last-of-type{border-bottom:2px solid var(--ink)}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:1rem;padding:1.1rem 0;min-height:58px;font-weight:600}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font:700 1.5rem "Pixelify Sans",monospace;line-height:1}
+.faq details[open] summary::after{content:"\2212"}
+.faq p{color:var(--muted);padding:0 0 1.2rem;max-width:60ch}
+.end{text-align:center}
+.end h2{margin:.5rem 0 1.4rem}
+footer{border-top:2px solid var(--ink);padding:1.4rem 0;font:500 .8rem ui-monospace,Menlo,monospace;color:var(--muted)}
+footer .wrap{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+footer a{margin-left:1rem;text-decoration:none}footer a:hover{text-decoration:underline}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 1.2rem);transform:translate(-50%,150%);background:var(--ink);color:var(--bg);padding:.8rem 1.2rem;border-radius:10px;max-width:min(92vw,420px);text-align:center;transition:transform .25s ease;z-index:30;font:500 .85rem ui-monospace,Menlo,monospace}
+#toast.show{transform:translate(-50%,0)}
+[hidden]{display:none!important}
+.vwrap{width:min(960px,100% - 2.5rem);margin:0 auto;padding:clamp(2.5rem,7vw,4.5rem) 0 clamp(3rem,8vw,6rem)}
+.back{font:600 .8rem ui-monospace,Menlo,monospace;text-decoration:none;text-transform:uppercase;display:inline-block;margin-bottom:1.4rem}
+.back:hover{text-decoration:underline}
+.panel{background:var(--panel);border:3px solid var(--ink);border-radius:16px;box-shadow:6px 6px 0 var(--ink);padding:clamp(1.2rem,4vw,2rem)}
+.fld{display:grid;gap:.4rem;margin-bottom:1.1rem}
+.fld label{font:600 .78rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em}
+.fld input,.fld select,.fld textarea{font:inherit;color:var(--ink);background:var(--bg);border:2px solid var(--ink);border-radius:10px;padding:.7rem .9rem;min-height:48px;width:100%}
+.fld textarea{min-height:100px;resize:vertical}
+.fld small{color:var(--muted)}
+.maplist{display:grid;gap:1.6rem;margin-top:2rem}
+.node{display:grid;grid-template-columns:auto 1fr auto;gap:1rem 1.3rem;align-items:center}
+.node .lvl{font:700 2.6rem "Pixelify Sans",monospace;color:var(--yellow);text-shadow:3px 3px 0 var(--yshadow);line-height:1}
+.node p{color:var(--muted);margin-top:.3rem}
+.node.lock{opacity:.6;border-style:dashed;box-shadow:none}
+.node.lock .lvl{color:var(--muted);text-shadow:none}
+.bar2{height:16px;border:2px solid var(--ink);border-radius:8px;background:var(--bg);overflow:hidden;margin-top:.8rem}
+.bar2 i{display:block;height:100%;width:0;background:var(--pink);transition:width .4s}
+.stack{display:grid;gap:1.6rem;margin-top:1.8rem}
+.stack h3{margin-bottom:.6rem}
+.rowlist{list-style:none;margin:.8rem 0 0;padding:0}
+.rowlist li{display:grid;grid-template-columns:auto 1fr auto;gap:.9rem;align-items:center;padding:.9rem 0;border-top:2px solid var(--line)}
+.rowlist input[type=checkbox]{width:28px;height:28px;accent-color:var(--pink);cursor:pointer}
+.rowlist label{cursor:pointer}
+.rowlist b{font-weight:600}
+@media (max-width:600px){.node{grid-template-columns:auto 1fr}.node .btn{grid-column:1/-1;justify-content:center}.node svg.sp{display:none}}
+.wgrid{display:grid;gap:1.8rem;margin-top:2rem}
+.win{background:var(--panel);border:3px solid var(--ink);border-radius:14px;box-shadow:6px 6px 0 var(--ink);overflow:hidden;display:flex;flex-direction:column}
+.wbar{display:flex;align-items:center;gap:.7rem;background:var(--yellow);border-bottom:3px solid var(--ink);padding:.5rem .8rem;color:#14141A}
+.dots{display:flex;gap:5px}.dots i{width:11px;height:11px;border-radius:50%;background:#14141A;opacity:.85}
+.wt{font:600 .75rem ui-monospace,Menlo,monospace;flex:1}
+.wx{font:700 1rem monospace;line-height:1}
+.wbody{padding:1.4rem;display:grid;gap:.5rem;align-content:start;flex:1}
+.wbody .lvl{font:700 2.6rem "Pixelify Sans",monospace;color:var(--yellow);text-shadow:3px 3px 0 var(--yshadow);line-height:1}
+.wbody p{color:var(--muted)}
+.wbody .btn{justify-self:start;margin-top:.8rem}
+.win.lock{border-style:dashed;box-shadow:none;opacity:.65}
+.win.lock .wbar{background:var(--line);color:var(--muted)}
+.win.lock .wbody{justify-items:center;text-align:center;padding:2rem 1.3rem}
+.way{display:grid;grid-template-columns:auto 1fr;gap:.9rem;align-items:start;padding:.9rem 0;border-top:2px solid var(--line)}
+.way:first-child{border-top:0}
+.way .ic{width:46px;height:46px;border:3px solid var(--ink);border-radius:10px;display:grid;place-items:center;font:700 1.1rem "Pixelify Sans",monospace;color:#14141A}
+@media (min-width:700px){.wgrid{grid-template-columns:repeat(2,1fr)}}
+@media (min-width:860px){
+.hero .stks{display:block;margin:0}
+.stk{position:absolute}
+.s1{left:6%;top:9rem}.s2{right:7%;top:6rem}.s3{left:12%;top:22rem}
+.about{grid-template-columns:.8fr 1.2fr;column-gap:3rem}.about .head{grid-column:1/-1}
+.lvhead{grid-template-columns:1fr auto}
+.cards{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:859px){nav.pills{display:none}}
+@media (max-width:600px){.hearts,.logo span{display:none}.hero .cloud{display:none}.score{font-size:.72rem}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+.tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.4rem}
+.tabs button{font:600 .8rem ui-monospace,Menlo,monospace;text-transform:uppercase;padding:.55rem 1rem;border:2px solid var(--ink);border-radius:10px;background:var(--bg);color:var(--ink);cursor:pointer;min-height:44px}
+.tabs button.on{background:var(--ink);color:var(--bg)}
+.msg{min-height:1.4rem;font:500 .85rem ui-monospace,Menlo,monospace;margin-top:1rem}
+.msg.err{color:var(--pink)}
+.btn.line{background:transparent;color:var(--ink);border:2px solid var(--ink)}
+.row{display:flex;gap:1rem;flex-wrap:wrap;align-items:center}
+.sep{display:flex;gap:.8rem;align-items:center;margin:1.2rem 0;color:var(--muted);font:500 .8rem ui-monospace,Menlo,monospace}
+.sep::before,.sep::after{content:"";flex:1;height:2px;background:var(--line)}
+.notice{border:2px solid var(--pink);border-radius:12px;padding:.8rem 1rem;margin-bottom:1.2rem;font-weight:500}
+#hud .mono{max-width:14ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#hud button.link{background:none;border:0;cursor:pointer;color:inherit;padding:0}
+@media (max-width:700px){#hud .mono,#hud .hide-sm{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="logo" href="#" aria-label="start.here home"><svg class="sp" data-sprite="slime" data-s="3"></svg><span>start.here</span></a>
+    <div class="hud" id="hud"></div>
+  </div>
+</header>
+<div id="app"></div>
+<template id="tpl-welcome">
+<section class="wrap hero" id="home">
+  <svg class="sp cloud" data-sprite="cloud" data-s="5" aria-hidden="true"></svg>
+  <span class="note">new game:</span><br>
+  <div class="frame"><h1>START <span>HERE</span></h1></div>
+  <span class="tag">FREE WORKSHOP &middot; FOR STUDENTS &middot; ONLINE</span>
+  <p class="tagline"><span id="type"></span><span class="cur" aria-hidden="true"></span></p>
+  <div class="cta"><a class="btn js-register" href="#auth">Save my seat &#9654;</a><a class="link" href="#about">Meet your teacher &rarr;</a></div>
+  <div class="stks" aria-hidden="false">
+    <span class="stk s1">&#9733; Free workshop</span><span class="stk s2">&hearts; Live + recorded</span><span class="stk s3">&#9679; 7 levels</span>
+  </div>
+  <div class="ground" aria-hidden="true">
+    <svg class="hills" viewBox="0 0 1200 130" preserveAspectRatio="none"><path d="M0 70 Q150 10 300 60 T600 60 T900 55 T1200 60 V110 H0Z" fill="#4DCB85"/><path d="M0 110 H1200 V130 H0Z" fill="#5A3A2B"/><path d="M0 110 H1200" stroke="#14141A" stroke-width="4"/></svg>
+    <button class="mascot" id="mascot" type="button" aria-label="Click the mascot for bonus points"><span class="note">click me!</span><svg class="sp" data-sprite="slimeRed" data-s="5"></svg></button>
+  </div>
+</section>
+
+<section class="wrap about" id="about">
+  <div class="head"><span class="note">your teacher</span><h2 style="margin-top:1rem">Character select</h2></div>
+  <div class="console"><div class="lcd"><svg class="sp" data-sprite="slime" data-s="8"></svg><span>LV 01 &middot; BEGINNER</span></div><div class="pad"><i></i><b></b><b></b></div></div>
+  <p class="big">Hi, I’m your host, a second-year B.Tech student who <mark class="m1">felt lost</mark> in my first year. I turned that confusion into a <mark class="m2">free workshop</mark>, so you can <mark class="m3">skip the guesswork</mark>.</p>
+</section>
+</template>
+<footer><div class="wrap"><span>&copy; start.here &middot; a student-led learning community</span></div></footer>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script>
+(function(){
+"use strict";
+var C = window.APP_CONFIG || {};
+var $ = function(id){ return document.getElementById(id); };
+var app = $("app");
+function h(tag, props){
+  var e = document.createElement(tag), k, kids = Array.prototype.slice.call(arguments, 2);
+  props = props || {};
+  for (k in props) { var v = props[k];
+    if (k === "class") e.className = v;
+    else if (k.slice(0, 2) === "on") e.addEventListener(k.slice(2), v);
+    else if (v === true) e.setAttribute(k, "");
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  (function add(list){ list.forEach(function(c){ if (Array.isArray(c)) return add(c); if (c == null || c === false) return; e.appendChild(c.nodeType ? c : document.createTextNode(String(c))); }); })(kids);
+  return e;
+}
+if (!C.SUPABASE_URL || !C.SUPABASE_KEY || !window.supabase) {
+  app.replaceChildren(h("div", {class:"vwrap"}, h("h2", null, "Setup needed"), h("p", {style:"margin-top:1rem"}, "Open config.js and paste your Supabase project URL and publishable key. Steps are in README.md.")));
+  return;
+}
+  var SP = {
+    slime:{p:{g:"#2FB36F",h:"#9BEBBE",k:"#14141A",c:"#F08CA4"},r:["...gggggg...","..gggggggg..",".gggggggggg.",".ghggggggggg","gggggggggggg","gggkgggggkgg","gcggggggggcg","gggggkkggggg",".gggggggggg."]},
+    slimeRed:{p:{g:"#D8284E",h:"#FF8FA8",k:"#14141A",c:"#FFC2CF"},r:["...gggggg...","..gggggggg..",".gggggggggg.",".ghggggggggg","gggggggggggg","gggkgggggkgg","gcggggggggcg","gggggkkggggg",".gggggggggg."]},
+    heart:{p:{x:"#E2145E"},r:[".xx...xx.","xxxx.xxxx","xxxxxxxxx","xxxxxxxxx",".xxxxxxx.","..xxxxx..","...xxx...","....x...."]},
+    cloud:{p:{o:"#8EC9E6",W:"#FFFFFF"},r:["....oooo......","..ooWWWWoooo..",".oWWWWWWWWWWo.","oWWWWWWWWWWWWo",".oooooooooooo."]},
+    lock:{p:{x:"#8A8A92",k:"#14141A"},r:["..xxxx..",".x....x.",".x....x.","xxxxxxxx","xxxkkxxx","xxxkkxxx","xxxxxxxx","xxxxxxxx"]}
+  };
+function sprites(root){
+  root.querySelectorAll("svg[data-sprite]").forEach(function(el){
+    var d = SP[el.dataset.sprite]; if (!d || el.firstChild) return;
+    var s = +el.dataset.s || 4, w = d.r[0].length, ht = d.r.length, out = "";
+    d.r.forEach(function(row, y){ for (var x = 0; x < row.length; x++){ var c = row[x]; if (c !== ".") out += "<rect x=\"" + x + "\" y=\"" + y + "\" width=\"1.02\" height=\"1.02\" fill=\"" + d.p[c] + "\"/>"; } });
+    el.setAttribute("viewBox", "0 0 " + w + " " + ht); el.setAttribute("width", w * s); el.setAttribute("height", ht * s); el.innerHTML = out;
+  });
+}
+function svgIcon(name, s){ var d = document.createElement("span"); d.innerHTML = "<svg class=\"sp\" data-sprite=\"" + name + "\" data-s=\"" + s + "\" aria-hidden=\"true\"></svg>"; return d; }
+
+var sb = window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_KEY);
+var S = {user:null, profile:null, open:{}, ch:null, needPw:false};
+var toastEl = $("toast"), tt;
+function say(m){ toastEl.textContent = m; toastEl.classList.add("show"); clearTimeout(tt); tt = setTimeout(function(){ toastEl.classList.remove("show"); }, 3200); }
+function isAdmin(){ return !!(S.profile && S.profile.role === "admin"); }
+function pad2(n){ return (n < 10 ? "0" : "") + n; }
+function fmt(t){ return t ? new Date(t).toLocaleString([], {dateStyle:"medium", timeStyle:"short"}) : "Date to be announced"; }
+function msgBox(){ return h("p", {class:"msg", role:"status", "aria-live":"polite"}); }
+function setMsg(el, t, bad){ el.textContent = t || ""; el.className = "msg" + (bad ? " err" : ""); }
+function go(name){ var target = name ? "#" + name : ""; if ((location.hash || "") === target) route(); else location.hash = name; }
+function fld(id, label, attrs, hint){ return h("div", {class:"fld"}, h("label", {for:id}, label), h("input", Object.assign({id:id}, attrs)), hint ? h("small", null, hint) : null); }
+function errorBox(e){ return h("div", {class:"vwrap"}, h("h2", null, "Something went wrong"), h("p", {style:"margin-top:1rem;color:var(--muted)"}, (e && e.message) ? e.message : String(e))); }
+function log(type, wid){ if (S.user) sb.from("events").insert({user_id:S.user.id, type:type, workshop_id:wid || null}).then(function(){}, function(){}); }
+function track(){
+  if (!S.user || S.ch) return;
+  S.ch = sb.channel("online", {config:{presence:{key:S.user.id}}});
+  S.ch.subscribe(function(st){ if (st === "SUBSCRIBED") S.ch.track({at:new Date().toISOString()}); });
+}
+async function refresh(){
+  var r = await sb.auth.getSession(), s = r.data && r.data.session;
+  S.user = s ? s.user : null; S.profile = null;
+  if (S.user) { var p = await sb.from("profiles").select("*").eq("id", S.user.id).maybeSingle(); S.profile = p.data || null; }
+}
+async function signOut(){
+  await sb.auth.signOut();
+  if (S.ch) { sb.removeChannel(S.ch); S.ch = null; }
+  S.user = null; S.profile = null; S.open = {}; hud(); go("");
+}
+function hud(){
+  var box = $("hud"); box.replaceChildren();
+  if (!S.user) { box.appendChild(h("a", {class:"start", href:"#auth"}, "Sign in \u25B6")); return; }
+  var name = (S.profile && S.profile.full_name) || S.user.email;
+  box.append(h("span", {class:"mono"}, name), h("a", {class:"link", href:"#workshops"}, "Workshops"), h("a", {class:"link hide-sm", href:"#account"}, "Account"),
+    isAdmin() ? h("a", {class:"link", href:"#admin"}, "Admin") : null,
+    h("button", {class:"link", type:"button", onclick:signOut}, "Sign out"));
+}
+async function afterLogin(){ await refresh(); track(); log("login"); hud(); go(isAdmin() ? "admin" : "workshops"); }
+
+/* ---------- welcome ---------- */
+function welcome(){
+  app.replaceChildren($("tpl-welcome").content.cloneNode(true));
+  var t = "Learn tech from zero, one level at a time.", el = $("type"), i = 0;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) el.textContent = t;
+  else (function k(){ el.textContent = t.slice(0, ++i); if (i < t.length) setTimeout(k, 55); })();
+  var m = $("mascot"); if (m) m.addEventListener("click", function(){ m.classList.remove("jump"); void m.offsetWidth; m.classList.add("jump"); });
+  var hh = location.hash.slice(1); if (hh && $(hh)) $(hh).scrollIntoView();
+}
+
+/* ---------- sign in / sign up / email code ---------- */
+function authView(mode){
+  mode = mode || "in";
+  function tab(m, t){ return h("button", {type:"button", class:mode === m ? "on" : "", onclick:function(){ authView(m); }}, t); }
+  var box = h("div", {class:"vwrap"}, h("a", {class:"back", href:"#"}, "\u2190 Back"), h("br"),
+    h("span", {class:"note"}, "player login"), h("h2", {style:"margin:1rem 0 1.4rem"}, mode === "up" ? "Create your player" : mode === "code" ? "Forgot password" : "Welcome back"),
+    h("div", {class:"tabs"}, tab("in", "Sign in"), tab("up", "Create account"), tab("code", "Forgot password")));
+  var msg = msgBox(), f;
+  if (mode === "in") {
+    f = h("form", {class:"panel"}, fld("in-e", "Email", {type:"email", required:true, autocomplete:"email"}), fld("in-p", "Password", {type:"password", required:true, autocomplete:"current-password"}),
+      h("button", {class:"btn", type:"submit"}, "Sign in \u25B6"), msg);
+    f.addEventListener("submit", async function(ev){
+      ev.preventDefault(); setMsg(msg, "Signing in...");
+      var r = await sb.auth.signInWithPassword({email:$("in-e").value.trim(), password:$("in-p").value});
+      if (r.error) return setMsg(msg, r.error.message, true);
+      await afterLogin();
+    });
+  } else if (mode === "up") {
+    var yr = h("select", {id:"up-y", required:true}, h("option", {value:""}, "Choose one"), ["1st year","2nd year","3rd year","4th year","Other"].map(function(y){ return h("option", {value:y}, y); }));
+    f = h("form", {class:"panel"}, fld("up-n", "Your name", {required:true, autocomplete:"name"}), fld("up-e", "Email", {type:"email", required:true, autocomplete:"email"}),
+      fld("up-w", "WhatsApp number", {type:"tel", autocomplete:"tel"}, "Optional. Used only for session reminders."),
+      h("div", {class:"fld"}, h("label", {for:"up-y"}, "Year of study"), yr),
+      h("div", {class:"fld"}, h("label", {for:"up-q"}, "What confuses you most right now?"), h("textarea", {id:"up-q"})),
+      fld("up-p", "Password", {type:"password", required:true, minlength:"8", autocomplete:"new-password"}, "At least 8 characters."),
+      h("button", {class:"btn", type:"submit"}, "Start game \u25B6"), msg);
+    f.addEventListener("submit", async function(ev){
+      ev.preventDefault(); setMsg(msg, "Creating your account...");
+      var r = await sb.auth.signUp({email:$("up-e").value.trim(), password:$("up-p").value, options:{emailRedirectTo: location.origin + location.pathname, data:{full_name:$("up-n").value.trim(), phone:$("up-w").value.trim(), year:$("up-y").value, why:$("up-q").value.trim()}}});
+      if (r.error) return setMsg(msg, r.error.message, true);
+      if (r.data.session) return afterLogin();
+      setMsg(msg, "Almost there! Check your email for a confirmation link. Once confirmed, come back here and sign in.");
+    });
+  } else {
+    var step = 1, email = "";
+    f = h("form", {class:"panel"});
+    var draw = function(){
+      f.replaceChildren();
+      if (step === 1) f.append(h("p", {style:"margin-bottom:1.2rem;color:var(--muted)"}, "Enter your email and we\u2019ll send you a one-time code. After you sign in with it, you can set a new password."),
+        fld("fc-e", "Email", {type:"email", required:true, autocomplete:"email"}), h("button", {class:"btn", type:"submit"}, "Send me a code \u25B6"), msg);
+      else f.append(h("p", {style:"margin-bottom:1.2rem;color:var(--muted)"}, "We sent a code to " + email + ". Enter it below."),
+        fld("fc-c", "Code", {inputmode:"numeric", autocomplete:"one-time-code", maxlength:"10", required:true}),
+        h("div", {class:"row"}, h("button", {class:"btn", type:"submit"}, "Verify and sign in \u25B6"), h("button", {class:"link", type:"button", style:"background:none;border:0;cursor:pointer;color:inherit", onclick:function(){ step = 1; draw(); }}, "Use a different email")), msg);
+    };
+    f.addEventListener("submit", async function(ev){
+      ev.preventDefault();
+      if (step === 1) {
+        email = $("fc-e").value.trim(); setMsg(msg, "Sending...");
+        var r = await sb.auth.signInWithOtp({email:email, options:{shouldCreateUser:false}});
+        if (r.error) return setMsg(msg, r.error.message, true);
+        step = 2; draw(); setMsg(msg, "Code sent. Check your inbox and spam folder.");
+      } else {
+        setMsg(msg, "Checking...");
+        var v = await sb.auth.verifyOtp({email:email, token:$("fc-c").value.trim(), type:"email"});
+        if (v.error) return setMsg(msg, v.error.message, true);
+        S.needPw = true; await refresh(); track(); log("login"); hud(); go("account");
+      }
+    });
+    draw();
+  }
+  box.append(f);
+  if (mode !== "code") box.append(h("div", {class:"sep"}, "or"), h("button", {class:"btn line", type:"button", onclick:async function(){
+    var r = await sb.auth.signInWithOAuth({provider:"google", options:{redirectTo:location.origin + location.pathname}});
+    if (r.error) say(r.error.message);
+  }}, "Continue with Google"));
+  app.replaceChildren(box); sprites(app);
+}
+
+/* ---------- workshop list ---------- */
+function win(title, locked, body){
+  return h("article", {class:"win" + (locked ? " lock" : "")}, h("div", {class:"wbar"}, h("span", {class:"dots"}, h("i"), h("i"), h("i")), h("span", {class:"wt"}, title), h("span", {class:"wx", "aria-hidden":"true"}, "\u00D7")), h("div", {class:"wbody"}, body));
+}
+async function enter(w){
+  var r = await sb.from("enrollments").upsert({user_id:S.user.id, workshop_id:w.id}, {onConflict:"user_id,workshop_id", ignoreDuplicates:true});
+  if (r.error) return say(r.error.message);
+  log("open_workshop", w.id); go("workshop-" + w.id);
+}
+async function workshopsView(){
+  var uid = S.user.id;
+  var res = await Promise.all([
+    sb.from("workshops").select("*").eq("published", true).order("level_no"),
+    sb.from("enrollments").select("workshop_id").eq("user_id", uid),
+    sb.from("sessions").select("id,workshop_id"),
+    sb.from("session_progress").select("session_id").eq("user_id", uid)
+  ]);
+  for (var q = 0; q < res.length; q++) if (res[q].error) throw res[q].error;
+  var list = res[0].data, enrolled = {}, doneSet = {}, total = {}, done = {};
+  res[1].data.forEach(function(x){ enrolled[x.workshop_id] = true; });
+  res[3].data.forEach(function(x){ doneSet[x.session_id] = true; });
+  res[2].data.forEach(function(x){ total[x.workshop_id] = (total[x.workshop_id] || 0) + 1; if (doneSet[x.id]) done[x.workshop_id] = (done[x.workshop_id] || 0) + 1; });
+  var complete = function(w){ return total[w.id] > 0 && done[w.id] === total[w.id]; };
+  S.open = {};
+  var grid = h("div", {class:"wgrid"});
+  list.forEach(function(w, i){
+    var unlocked = i === 0 || complete(list[i - 1]), lv = "level_" + pad2(w.level_no) + ".exe";
+    if (!unlocked) { grid.append(win("locked.exe", true, [svgIcon("lock", 6), h("h3", null, "Level " + pad2(w.level_no) + ": " + w.title), h("p", null, "Unlocks after Level " + pad2(list[i - 1].level_no) + ".")])); return; }
+    S.open[w.id] = true;
+    var t = total[w.id] || 0, d = done[w.id] || 0, pct = t ? Math.round(d / t * 100) : 0;
+    grid.append(win(lv, false, [h("span", {class:"lvl"}, pad2(w.level_no)), h("h3", null, w.title), w.description ? h("p", null, w.description) : null,
+      h("div", {class:"bar2"}, h("i", {style:"width:" + pct + "%"})), h("span", {class:"mono"}, enrolled[w.id] ? d + " / " + t + " sessions" : "Not started"),
+      h("button", {class:"btn", type:"button", onclick:function(){ enter(w); }}, (enrolled[w.id] ? "Continue" : "Enter") + " \u25B6")]));
+  });
+  app.replaceChildren(h("div", {class:"vwrap"}, h("span", {class:"note"}, "welcome, " + ((S.profile && S.profile.full_name) || "player")), h("h2", {style:"margin:1rem 0 .6rem"}, "Choose your level"),
+    h("p", {class:"mono"}, "Finish a level to unlock the next one."), list.length ? grid : h("p", {style:"margin-top:2rem;color:var(--muted)"}, "No workshops are published yet. Check back soon.")));
+}
+
+/* ---------- one workshop ---------- */
+function compPanel(c, mine){
+  var closed = c.status === "closed" || (c.closes_at && new Date(c.closes_at) < new Date()), open = c.status === "open" && !closed;
+  var p = h("section", {class:"panel"}, h("h3", null, c.title), c.description ? h("p", {style:"color:var(--muted);margin:.4rem 0 1rem"}, c.description) : null);
+  if (c.status === "locked") { p.append(h("div", {class:"row"}, svgIcon("lock", 4), h("p", {class:"mono"}, "Locked. It opens when the organisers start it."))); return p; }
+  if (!open) { p.append(h("p", {class:"mono"}, mine ? "Closed. Your submission was received." : "This competition is closed.")); return p; }
+  var ans = (mine && mine.answers) || {}, form = h("form"), msg = msgBox();
+  (c.fields || []).forEach(function(f){
+    var id = "cf-" + c.id + "-" + f.key, short = ["url", "email", "number", "short"].indexOf(f.type) >= 0;
+    var el = short ? h("input", {id:id, type:f.type === "short" ? "text" : f.type, required:!!f.required}) : h("textarea", {id:id, required:!!f.required});
+    el.value = ans[f.key] || ""; el.dataset.key = f.key;
+    form.append(h("div", {class:"fld"}, h("label", {for:id}, f.label), el));
+  });
+  form.append(h("button", {class:"btn", type:"submit"}, (mine ? "Update" : "Submit") + " \u25B6"), msg);
+  form.addEventListener("submit", async function(ev){
+    ev.preventDefault(); var a = {}; form.querySelectorAll("[data-key]").forEach(function(el){ a[el.dataset.key] = el.value.trim(); });
+    setMsg(msg, "Saving...");
+    var r = await sb.from("submissions").upsert({competition_id:c.id, user_id:S.user.id, answers:a, updated_at:new Date().toISOString()}, {onConflict:"competition_id,user_id"});
+    if (r.error) return setMsg(msg, r.error.message, true);
+    log("submit", c.workshop_id); setMsg(msg, "Submitted. You can edit it until the competition closes.");
+  });
+  p.append(form); return p;
+}
+async function workshopView(id){
+  if (!S.open[id]) return go("workshops");
+  var uid = S.user.id;
+  var res = await Promise.all([
+    sb.from("workshops").select("*").eq("id", id).maybeSingle(),
+    sb.from("workshop_links").select("live_url").eq("workshop_id", id).maybeSingle(),
+    sb.from("sessions").select("*").eq("workshop_id", id).order("position"),
+    sb.from("session_progress").select("session_id").eq("user_id", uid),
+    sb.from("competitions").select("*").eq("workshop_id", id).order("created_at")
+  ]);
+  for (var q = 0; q < res.length; q++) if (res[q].error) throw res[q].error;
+  var w = res[0].data; if (!w) throw new Error("This workshop is not available.");
+  var sessions = res[2].data, comps = res[4].data, doneSet = {};
+  res[3].data.forEach(function(x){ doneSet[x.session_id] = true; });
+  var subs = {};
+  if (comps.length) {
+    var sr = await sb.from("submissions").select("*").eq("user_id", uid).in("competition_id", comps.map(function(c){ return c.id; }));
+    if (sr.error) throw sr.error; sr.data.forEach(function(x){ subs[x.competition_id] = x; });
+  }
+  var bar = h("i", {style:"width:0"}), txt = h("span", {class:"mono"});
+  function paint(){ var n = sessions.filter(function(s){ return doneSet[s.id]; }).length, t = sessions.length; bar.style.width = (t ? Math.round(n / t * 100) : 0) + "%"; txt.textContent = (t && n === t) ? "LEVEL COMPLETE" : n + " / " + t + " sessions"; }
+  var list = h("ol", {class:"rowlist"});
+  sessions.forEach(function(s, i){
+    var cb = h("input", {type:"checkbox", id:"s" + i, checked:!!doneSet[s.id]});
+    cb.addEventListener("change", async function(){
+      var r = cb.checked ? await sb.from("session_progress").insert({user_id:uid, session_id:s.id}) : await sb.from("session_progress").delete().eq("user_id", uid).eq("session_id", s.id);
+      if (r.error) { cb.checked = !cb.checked; return say(r.error.message); }
+      if (cb.checked) doneSet[s.id] = true; else delete doneSet[s.id]; paint();
+    });
+    var rec = s.recording_url ? h("a", {class:"link", href:s.recording_url, target:"_blank", rel:"noopener", onclick:function(){ log("watch_recording", w.id); }}, "Recording") : h("span", {class:"mono"}, "Recording soon");
+    list.append(h("li", null, cb, h("label", {for:"s" + i}, h("b", null, (i + 1) + ". " + s.title), h("br"), h("span", {class:"mono"}, fmt(s.starts_at) + (s.description ? " \u00B7 " + s.description : ""))), rec));
+  });
+  var live = res[1].data && res[1].data.live_url;
+  var liveBtn = live ? h("a", {class:"btn", href:live, target:"_blank", rel:"noopener", onclick:function(){ log("join_live", w.id); }}, "Join live \u25B6") : null;
+  var stack = h("div", {class:"stack"},
+    h("section", {class:"panel"}, h("h3", null, "Dates"), h("p", null, w.dates_text || "Dates will be announced in class and posted here.")),
+    h("section", {class:"panel"}, h("h3", null, "Live link"), h("p", null, live ? "The session is on. Join with the button below." : "The live link will appear here before the session."), liveBtn ? h("p", {style:"margin-top:1rem"}, liveBtn) : null),
+    h("section", {class:"panel"}, h("h3", null, "Syllabus and sessions"), h("p", {class:"mono"}, "Tick a session when you finish it."), sessions.length ? list : h("p", {style:"color:var(--muted);margin-top:.8rem"}, "Sessions will be added soon.")),
+    comps.map(function(c){ return compPanel(c, subs[c.id]); }));
+  app.replaceChildren(h("div", {class:"vwrap"}, h("a", {class:"back", href:"#workshops"}, "\u2190 All levels"), h("br"), h("span", {class:"note"}, "level " + pad2(w.level_no)),
+    h("h2", {style:"margin:1rem 0 0"}, w.title), w.description ? h("p", {style:"margin-top:.8rem;color:var(--muted)"}, w.description) : null, h("div", {class:"bar2"}, bar), txt, stack));
+  paint();
+}
+
+/* ---------- account ---------- */
+async function accountView(){
+  var p = S.profile || {}, msg1 = msgBox(), msg2 = msgBox();
+  var f1 = h("form", {class:"panel"}, h("h3", {style:"margin-bottom:1rem"}, "Your details"), fld("ac-n", "Name", {required:true, value:p.full_name || ""}), fld("ac-w", "WhatsApp number", {type:"tel", value:p.phone || ""}),
+    h("p", {class:"mono", style:"margin-bottom:1rem"}, "Email: " + S.user.email), h("button", {class:"btn", type:"submit"}, "Save"), msg1);
+  f1.addEventListener("submit", async function(ev){
+    ev.preventDefault();
+    var r = await sb.from("profiles").update({full_name:$("ac-n").value.trim(), phone:$("ac-w").value.trim()}).eq("id", S.user.id);
+    if (r.error) return setMsg(msg1, r.error.message, true);
+    await refresh(); hud(); setMsg(msg1, "Saved.");
+  });
+  var f2 = h("form", {class:"panel"}, h("h3", {style:"margin-bottom:1rem"}, "Change password"), fld("ac-p", "New password", {type:"password", required:true, minlength:"8", autocomplete:"new-password"}), fld("ac-p2", "Repeat new password", {type:"password", required:true, minlength:"8", autocomplete:"new-password"}),
+    h("button", {class:"btn", type:"submit"}, "Update password"), msg2);
+  f2.addEventListener("submit", async function(ev){
+    ev.preventDefault();
+    if ($("ac-p").value !== $("ac-p2").value) return setMsg(msg2, "The two passwords do not match.", true);
+    var r = await sb.auth.updateUser({password:$("ac-p").value});
+    if (r.error) return setMsg(msg2, r.error.message, true);
+    S.needPw = false; $("ac-p").value = ""; $("ac-p2").value = ""; setMsg(msg2, "Password updated.");
+  });
+  app.replaceChildren(h("div", {class:"vwrap"}, h("a", {class:"back", href:"#workshops"}, "\u2190 Workshops"), h("br"), h("span", {class:"note"}, "your player"), h("h2", {style:"margin:1rem 0 1.4rem"}, "Account"),
+    S.needPw ? h("div", {class:"notice"}, "You\u2019re signed in with a code. Set a new password below so you can sign in normally next time.") : null,
+    h("div", {class:"stack"}, f1, f2, h("div", null, h("button", {class:"btn line", type:"button", onclick:signOut}, "Sign out")))));
+}
+function adminView(){
+  app.replaceChildren(h("div", {class:"vwrap"}, h("span", {class:"note"}, "control room"), h("h2", {style:"margin:1rem 0"}, "Admin"),
+    isAdmin() ? h("p", {class:"panel"}, "You are signed in as an admin. The dashboard screens are the next step of the build.") : h("p", {class:"panel"}, "This area is for admins only.")));
+}
+
+/* ---------- router ---------- */
+var ROUTES = {"":welcome, auth:function(){ return authView("in"); }, workshops:workshopsView, account:accountView, admin:adminView};
+async function route(){
+  var hash = location.hash.slice(1), name = hash.indexOf("workshop-") === 0 ? "workshop" : hash;
+  if (["workshops", "workshop", "account", "admin"].indexOf(name) >= 0 && !S.user) return go("auth");
+  if (name === "auth" && S.user) return go("workshops");
+  hud(); if (name !== "" && ROUTES[name] !== welcome || name === "workshop") window.scrollTo(0, 0);
+  app.replaceChildren(h("div", {class:"vwrap"}, h("p", {class:"mono"}, "Loading...")));
+  try { if (name === "workshop") await workshopView(hash.slice(9)); else await (ROUTES[name] || welcome)(); }
+  catch (e) { app.replaceChildren(errorBox(e)); }
+  sprites(app);
+}
+(async function(){
+  /* Handle email confirmation redirect — Supabase puts tokens in the URL hash */
+  if (location.hash && (location.hash.indexOf("access_token") > -1 || location.hash.indexOf("type=signup") > -1 || location.hash.indexOf("type=recovery") > -1)) {
+    try {
+      var params = new URLSearchParams(location.hash.slice(1));
+      if (params.get("access_token")) {
+        var r = await sb.auth.setSession({access_token: params.get("access_token"), refresh_token: params.get("refresh_token") || ""});
+        if (!r.error) { location.hash = ""; await afterLogin(); return; }
+      }
+    } catch(e) {}
+  }
+  try { await refresh(); track(); if (S.user) log("visit"); } catch (e) {}
+  sb.auth.onAuthStateChange(function(ev){ if (ev === "SIGNED_OUT") setTimeout(function(){ S.user = null; S.profile = null; hud(); }, 0); });
+  addEventListener("hashchange", route); route();
+})();
+})();
+</script>
+</body>
+</html>

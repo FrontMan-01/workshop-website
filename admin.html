@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>start.here — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Caveat:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F8F7F3;--panel:#FFFFFF;--ink:#14141A;--muted:#5C5C57;--line:#DAD8D0;--pink:#D4105A;--yellow:#E0A91F;--yshadow:#8F6508;--cyan:#38B6D8;--mint:#BFEBD3;--sun:#F6E3A8;--rose:#F8C6D4;--btn:#14141A;--btn-ink:#FFFFFF;--green:#2FB36F;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg:#15171D;--panel:#1E212A;--ink:#F4F2EA;--muted:#A9AAA3;--line:#2E323D;--pink:#FF4D8D;--yellow:#F2BE3A;--yshadow:#7A5606;--btn:#F4F2EA;--btn-ink:#15171D;color-scheme:dark}}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 1rem/1.6 "Inter",system-ui,sans-serif;min-height:100vh}
+h1,h2,h3,h4{font-family:"Pixelify Sans","Courier New",monospace;font-weight:700;margin:0;line-height:1.1}
+h2{font-size:clamp(1.8rem,4vw,3rem)} h3{font-size:1.25rem;font-weight:500} h4{font-size:.95rem}
+p{margin:0} a{color:inherit}
+:focus-visible{outline:3px solid var(--pink);outline-offset:3px;border-radius:4px}
+[hidden]{display:none!important}
+.note{font-family:"Caveat",cursive;font-weight:600;font-size:1.4rem;display:inline-block;position:relative;line-height:1}
+.note::after{content:"";position:absolute;left:4%;right:4%;bottom:-5px;height:4px;background:linear-gradient(var(--ink),var(--ink)) 0 0/100% 2px no-repeat;border-radius:50%;transform:rotate(-1deg)}
+.mono{font:500 .75rem ui-monospace,Menlo,Consolas,monospace;color:var(--muted);letter-spacing:.04em}
+
+/* ── HEADER ── */
+header{background:var(--panel);border-bottom:2px solid var(--ink);position:sticky;top:0;z-index:20}
+.bar{display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 1.4rem;gap:1rem}
+.logo{font:700 1rem "Pixelify Sans",monospace;background:none;border:0;cursor:pointer;color:inherit;display:flex;align-items:center;gap:.5rem}
+.hud-right{display:flex;align-items:center;gap:.8rem}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:.45rem;min-height:42px;padding:.55rem 1.1rem;border-radius:10px;background:var(--btn);color:var(--btn-ink);font:600 .8rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em;border:2px solid var(--ink);cursor:pointer;transition:transform .12s}
+.btn:hover{transform:translateY(-2px)}
+.btn.sm{min-height:34px;padding:.35rem .75rem;font-size:.7rem}
+.btn.line{background:transparent;color:var(--ink)}
+.btn.danger{background:#C0392B;color:#fff;border-color:#C0392B}
+.btn.success{background:var(--green);color:#fff;border-color:var(--green)}
+.btn.warn{background:var(--yellow);color:#14141A;border-color:var(--yshadow)}
+.link{font:600 .8rem ui-monospace,Menlo,monospace;text-transform:uppercase;text-decoration:none;background:none;border:0;cursor:pointer;color:inherit;padding:0;letter-spacing:.04em}
+.link:hover{text-decoration:underline}
+
+/* ── FORMS ── */
+.fld{display:grid;gap:.25rem;margin-bottom:.75rem}
+.fld label{font:600 .72rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em}
+.fld input,.fld select,.fld textarea{font:inherit;color:var(--ink);background:var(--bg);border:2px solid var(--ink);border-radius:8px;padding:.5rem .75rem;min-height:38px;width:100%}
+.fld textarea{min-height:80px;resize:vertical}
+.fld small{color:var(--muted);font-size:.78rem}
+.fld input[type=checkbox]{width:20px;height:20px;min-height:unset;accent-color:var(--pink);cursor:pointer}
+.msg{min-height:1.1rem;font:500 .82rem ui-monospace,Menlo,monospace;margin-top:.7rem}
+.msg.err{color:var(--pink)} .msg.ok{color:var(--green)}
+.row{display:flex;gap:.7rem;flex-wrap:wrap;align-items:center}
+.stack{display:grid;gap:1.2rem}
+
+/* ── PANELS ── */
+.panel{background:var(--panel);border:3px solid var(--ink);border-radius:14px;box-shadow:5px 5px 0 var(--ink);padding:clamp(1rem,2.5vw,1.4rem)}
+.notice{border:2px solid var(--pink);border-radius:10px;padding:.7rem .9rem;margin-bottom:1rem;font-size:.9rem;font-weight:500}
+.notice.info{border-color:var(--cyan)}
+.notice.ok{border-color:var(--green)}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:3rem 1rem;box-sizing:border-box}
+.login-box{width:min(440px,100%);margin:0 auto}
+.login-box .brand{text-align:center;margin-bottom:1.5rem}
+.login-box .brand h2{margin-top:.3rem;font-size:2.2rem}
+.lock-icon{font-size:2.4rem;display:block;margin-bottom:.3rem}
+.tabs{display:flex;gap:.4rem;margin-bottom:1.2rem}
+.tabs button{flex:1;font:600 .78rem ui-monospace,Menlo,monospace;text-transform:uppercase;padding:.5rem;border:2px solid var(--ink);border-radius:8px;background:var(--bg);color:var(--ink);cursor:pointer;min-height:38px}
+.tabs button.on{background:var(--ink);color:var(--bg)}
+
+/* ── ADMIN LAYOUT ── */
+.admin-wrap{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 56px)}
+.admin-side{background:var(--panel);border-right:2px solid var(--ink);padding:1rem .7rem;display:flex;flex-direction:column;gap:.15rem;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto}
+.section-label{font:600 .62rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:.6rem .5rem .25rem;margin-top:.5rem}
+.section-label:first-child{margin-top:0}
+.aside-btn{display:flex;align-items:center;gap:.55rem;width:100%;background:none;border:0;border-radius:8px;padding:.5rem .65rem;font:500 .83rem "Inter",sans-serif;color:var(--ink);cursor:pointer;text-align:left;transition:background .12s}
+.aside-btn:hover{background:var(--bg)}
+.aside-btn.on{background:var(--ink);color:var(--bg)}
+.aside-btn .ic{font-size:.95rem;width:20px;text-align:center;line-height:1}
+.admin-main{padding:clamp(1.2rem,3vw,2rem);overflow-y:auto}
+
+/* ── TABLES ── */
+.atbl{width:100%;border-collapse:collapse;font-size:.88rem;margin-top:.7rem}
+.atbl th{font:600 .7rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:.55rem .75rem;border-bottom:2px solid var(--ink);white-space:nowrap}
+.atbl td{padding:.6rem .75rem;border-bottom:1px solid var(--line);vertical-align:middle}
+.atbl tr:hover td{background:var(--bg)}
+
+/* ── STATS ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.9rem;margin-bottom:1.6rem}
+.stat-card{background:var(--panel);border:2px solid var(--ink);border-radius:12px;padding:.9rem 1.1rem;box-shadow:4px 4px 0 var(--ink)}
+.stat-card .num{font:700 2rem "Pixelify Sans",monospace;color:var(--pink);line-height:1}
+.stat-card .lbl{font:500 .72rem ui-monospace,Menlo,monospace;color:var(--muted);margin-top:.25rem}
+
+/* ── BADGES ── */
+.badge{display:inline-block;font:600 .62rem ui-monospace,Menlo,monospace;text-transform:uppercase;padding:.18rem .48rem;border-radius:4px;letter-spacing:.04em}
+.badge.open{background:var(--mint);color:#14141A}
+.badge.locked{background:var(--line);color:var(--muted)}
+.badge.closed{background:var(--rose);color:#14141A}
+.badge.admin{background:var(--pink);color:#fff}
+.badge.pub{background:var(--mint);color:#14141A}
+.badge.draft{background:var(--sun);color:#14141A}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:center;justify-content:center;padding:1rem}
+.modal{background:var(--panel);border:3px solid var(--ink);border-radius:14px;box-shadow:8px 8px 0 var(--ink);padding:1.5rem;width:min(540px,100%);max-height:90vh;overflow-y:auto}
+.modal h3{margin-bottom:1.1rem}
+.modal-footer{display:flex;gap:.7rem;justify-content:flex-end;margin-top:1.1rem;flex-wrap:wrap}
+
+/* ── TOAST ── */
+#toast{position:fixed;left:50%;bottom:1.2rem;transform:translate(-50%,150%);background:var(--ink);color:var(--bg);padding:.75rem 1.1rem;border-radius:10px;max-width:min(92vw,400px);text-align:center;transition:transform .25s;z-index:99;font:500 .83rem ui-monospace,Menlo,monospace}
+#toast.show{transform:translate(-50%,0)}
+
+@media(max-width:700px){
+  .admin-wrap{grid-template-columns:1fr}
+  .admin-side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:2px solid var(--ink);padding:.5rem}
+  .aside-btn{width:auto;padding:.4rem .6rem;font-size:.75rem}
+  .section-label{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LOGIN SCREEN ══════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="brand">
+      <span class="lock-icon">🔐</span>
+      <span class="note">admin only</span>
+      <h2>Control Room</h2>
+      <p class="mono" style="margin-top:.5rem">start.here admin dashboard</p>
+    </div>
+    <div id="login-area">
+      <form class="panel" id="admin-login-form">
+        <div class="fld">
+          <label for="lg-u">Username</label>
+          <input id="lg-u" required autocomplete="username" placeholder="admin" value="admin">
+        </div>
+        <div class="fld">
+          <label for="lg-p">Password</label>
+          <input id="lg-p" type="password" required autocomplete="current-password" placeholder="••••••••••" value="StartHere@2026">
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-top:.6rem">
+          <button class="btn" type="submit" style="min-width:140px">Sign in ▶</button>
+          <button class="link" type="button" id="btn-forgot-pw">Forgot password?</button>
+        </div>
+        <p class="msg" id="login-msg"></p>
+      </form>
+      <div class="notice info" id="default-creds-notice" style="margin-top:1rem;font-size:.83rem">
+        🔑 <b>Default credentials</b><br>
+        Username: <b>admin</b> &nbsp;·&nbsp; Password: <b>StartHere@2026</b><br>
+        <span style="color:var(--muted)">Change them in Settings after signing in.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ ADMIN APP (hidden until login) ══════════════ -->
+<div id="admin-app" hidden>
+  <header>
+    <div class="bar">
+      <button class="logo" onclick="showTab('overview')">⚙ start.here admin</button>
+      <div class="hud-right">
+        <span class="mono" id="admin-email-display"></span>
+        <button class="btn sm line" onclick="goSettings()">Settings</button>
+        <button class="btn sm danger" onclick="adminLogout()">Sign out</button>
+      </div>
+    </div>
+  </header>
+  <div class="admin-wrap">
+    <div class="admin-side" id="admin-side"></div>
+    <div class="admin-main" id="admin-main"></div>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ══════════════════════════════════════════════
+   CREDENTIALS  (stored in localStorage)
+   Default: username=admin  password=StartHere@2026
+   Recovery code: RECOVER-2026
+══════════════════════════════════════════════ */
+var CREDS_KEY = "sh_admin_creds";
+var SESSION_KEY = "sh_admin_session";
+
+function getCreds(){
+  try{ return JSON.parse(localStorage.getItem(CREDS_KEY))||null; } catch(e){ return null; }
+}
+function saveCreds(c){ localStorage.setItem(CREDS_KEY, JSON.stringify(c)); }
+function getSession(){ return localStorage.getItem(SESSION_KEY)==="1"; }
+function setSession(v){ if(v)localStorage.setItem(SESSION_KEY,"1"); else localStorage.removeItem(SESSION_KEY); }
+
+// First-time defaults
+if(!getCreds()){
+  saveCreds({ username:"admin", password:"StartHere@2026", recoveryCode:"RECOVER-2026" });
+}
+
+/* ══════════════════════════════════════════════
+   DEMO DATA
+══════════════════════════════════════════════ */
+var DEMO = {
+  workshops:[
+    {id:"w1",level_no:1,title:"Intro to Web Dev",description:"HTML, CSS and how the internet works.",published:true,dates_text:"Every Saturday 10 AM – 12 PM (4 sessions)"},
+    {id:"w2",level_no:2,title:"JavaScript Fundamentals",description:"Variables, functions, loops, DOM.",published:true,dates_text:"Sundays 11 AM, starting 15 Nov"},
+    {id:"w3",level_no:3,title:"Building with React",description:"Components, state, props and hooks.",published:true,dates_text:"TBA after Level 2"},
+    {id:"w4",level_no:4,title:"Backend with Node.js",description:"APIs, routing, and a real database.",published:false,dates_text:"TBA"},
+    {id:"w5",level_no:5,title:"Databases & SQL",description:"Postgres, queries, schema design.",published:false,dates_text:"TBA"}
+  ],
+  sessions:{
+    "w1":[
+      {id:"s1a",title:"How browsers work",starts_at:"2026-11-08T10:00",description:"Request/response, HTML parsing",recording_url:"https://youtube.com"},
+      {id:"s1b",title:"Your first HTML page",starts_at:"2026-11-15T10:00",description:"Tags, structure, attributes",recording_url:"https://youtube.com"},
+      {id:"s1c",title:"CSS basics",starts_at:"2026-11-22T10:00",description:"Selectors, box model, flexbox",recording_url:""},
+      {id:"s1d",title:"Putting it together",starts_at:"2026-11-29T10:00",description:"Build a mini portfolio page",recording_url:""}
+    ],
+    "w2":[
+      {id:"s2a",title:"Variables & types",starts_at:"2026-11-15T11:00",description:"",recording_url:""},
+      {id:"s2b",title:"Functions & scope",starts_at:"2026-11-22T11:00",description:"",recording_url:""},
+      {id:"s2c",title:"Arrays & loops",starts_at:"2026-11-29T11:00",description:"",recording_url:""}
+    ],
+    "w3":[],"w4":[],"w5":[]
+  },
+  live_links:{"w1":"https://meet.google.com/demo","w2":"","w3":"","w4":"","w5":""},
+  competitions:{
+    "w1":[{id:"c1",title:"Mini Quiz",description:"Answer 3 questions about Level 1.",status:"open",closes_at:"2026-11-30T23:59",workshop_id:"w1",fields:[
+      {key:"q1",label:"What does HTML stand for?",type:"short",required:true},
+      {key:"q2",label:"Name one CSS property you learned.",type:"short",required:true},
+      {key:"q3",label:"What confused you most?",type:"long",required:false}
+    ]}],
+    "w2":[{id:"c2",title:"JS Hackathon",description:"Build a tiny app in 2 hours.",status:"locked",closes_at:"",workshop_id:"w2",fields:[]}],
+    "w3":[],"w4":[],"w5":[]
+  },
+  students:[
+    {id:"u1",email:"alice@example.com",full_name:"Alice Kumar",year:"2nd year",phone:"9876543210",role:"user",enrolled:["w1","w2"],joined:"2026-10-15"},
+    {id:"u2",email:"bob@example.com",full_name:"Bob Singh",year:"1st year",phone:"",role:"user",enrolled:["w1"],joined:"2026-10-18"},
+    {id:"u3",email:"carol@example.com",full_name:"Carol Nair",year:"3rd year",phone:"9123456789",role:"user",enrolled:["w1","w2"],joined:"2026-10-20"},
+    {id:"u4",email:"david@example.com",full_name:"David Rao",year:"2nd year",phone:"",role:"user",enrolled:["w1"],joined:"2026-10-22"},
+    {id:"u5",email:"eve@example.com",full_name:"Eve Thomas",year:"1st year",phone:"9988776655",role:"user",enrolled:["w1","w2"],joined:"2026-10-25"},
+    {id:"u6",email:"frank@example.com",full_name:"Frank Joshi",year:"4th year",phone:"",role:"user",enrolled:[],joined:"2026-10-28"}
+  ],
+  events:[
+    {type:"login",user:"Alice Kumar",email:"alice@example.com",at:"2026-11-03T07:10"},
+    {type:"login",user:"Bob Singh",email:"bob@example.com",at:"2026-11-03T07:22"},
+    {type:"visit",user:"Alice Kumar",email:"alice@example.com",at:"2026-11-03T07:11"},
+    {type:"join_live",user:"Carol Nair",email:"carol@example.com",workshop:"Intro to Web Dev",at:"2026-11-02T10:05"},
+    {type:"watch_recording",user:"Bob Singh",email:"bob@example.com",workshop:"Intro to Web Dev",at:"2026-11-02T14:30"},
+    {type:"watch_recording",user:"Alice Kumar",email:"alice@example.com",workshop:"Intro to Web Dev",at:"2026-11-02T18:00"},
+    {type:"submit",user:"Alice Kumar",email:"alice@example.com",workshop:"Intro to Web Dev",at:"2026-11-02T20:00"},
+    {type:"login",user:"Eve Thomas",email:"eve@example.com",at:"2026-11-03T07:48"}
+  ],
+  onlineNow:3
+};
+var _id=100; function uid(){ return "x"+(++_id); }
+
+/* ── SHARED STORE (localStorage → read by demo.html) ── */
+var DATA_KEY="sh_site_data";
+function saveData(){
+  try{
+    localStorage.setItem(DATA_KEY,JSON.stringify({
+      workshops:DEMO.workshops,
+      sessions:DEMO.sessions,
+      live_links:DEMO.live_links,
+      competitions:DEMO.competitions
+    }));
+  }catch(e){}
+}
+
+/* ── LOAD STUDENT DATA (written by index.html) ── */
+var STU_DATA_KEY="sh_student_data";
+function loadStudentData(){
+  try{
+    var saved=JSON.parse(localStorage.getItem(STU_DATA_KEY));
+    if(!saved) return;
+    // Add newly registered students if any
+    if(saved.registeredStudents && saved.registeredStudents.length){
+      saved.registeredStudents.forEach(function(newStu){
+        var exists = DEMO.students.some(function(s){ return s.email === newStu.email || s.id === newStu.id; });
+        if(!exists){
+          DEMO.students.unshift(newStu);
+          DEMO.events.push({
+            type: "login",
+            user: newStu.full_name,
+            email: newStu.email,
+            at: newStu.joined || new Date().toISOString()
+          });
+        } else {
+          var target = DEMO.students.find(function(s){ return s.email === newStu.email || s.id === newStu.id; });
+          if(target && newStu.enrolled) target.enrolled = newStu.enrolled;
+        }
+      });
+    }
+    // Merge enrollments into student records
+    if(saved.enrollments){
+      DEMO.students.forEach(function(stu){
+        stu.enrolled=DEMO.workshops.filter(function(w){return saved.enrollments[w.id];}).map(function(w){return w.id;});
+      });
+    }
+  }catch(e){}
+}
+
+/* ── LOAD PREVIOUSLY SAVED ADMIN CONTENT ── */
+function loadAdminData(){
+  try{
+    var saved=JSON.parse(localStorage.getItem(DATA_KEY));
+    if(!saved) return;
+    if(saved.workshops && saved.workshops.length) DEMO.workshops    = saved.workshops;
+    if(saved.sessions)                            DEMO.sessions     = saved.sessions;
+    if(saved.live_links)                          DEMO.live_links   = saved.live_links;
+    if(saved.competitions)                        DEMO.competitions = saved.competitions;
+  }catch(e){}
+}
+loadAdminData();
+loadStudentData();
+
+/* ── AUTO-REFRESH when tab gets focus or when student registers ── */
+document.addEventListener("visibilitychange",function(){
+  if(!document.hidden && getSession()){
+    loadStudentData();
+    if(currentTab) showTab(currentTab);
+  }
+});
+window.addEventListener("storage",function(e){
+  if((e.key === STU_DATA_KEY || e.key === DATA_KEY) && getSession()){
+    loadStudentData();
+    if(currentTab) showTab(currentTab);
+  }
+});
+
+/* ══════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════ */
+var $ = function(id){ return document.getElementById(id); };
+var toastEl=$("toast"), tt;
+function say(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(tt); tt=setTimeout(function(){toastEl.classList.remove("show");},3000); }
+function pad2(n){ return (n<10?"0":"")+n; }
+function fmt(t){ return t?new Date(t).toLocaleString([],{dateStyle:"medium",timeStyle:"short"}):"TBA"; }
+function fmtDate(t){ return t?new Date(t).toLocaleDateString([],{dateStyle:"medium"}):"—"; }
+function wName(id){ var w=DEMO.workshops.find(function(x){return x.id===id;}); return w?w.title:id; }
+
+function h(tag,props){
+  var e=document.createElement(tag),k,kids=Array.prototype.slice.call(arguments,2);
+  props=props||{};
+  for(k in props){var v=props[k];
+    if(k==="class")e.className=v;
+    else if(k.slice(0,2)==="on")e.addEventListener(k.slice(2),v);
+    else if(v===true)e.setAttribute(k,"");
+    else if(v!==false&&v!=null)e.setAttribute(k,v);
+  }
+  (function add(list){list.forEach(function(c){if(Array.isArray(c))return add(c);if(c==null||c===false)return;e.appendChild(c.nodeType?c:document.createTextNode(String(c)));});})(kids);
+  return e;
+}
+function msgBox(){ return h("p",{class:"msg"}); }
+function setMsg(el,t,ok){ el.textContent=t||""; el.className="msg"+(ok===true?" ok":ok===false?" err":""); }
+function fld(id,label,attrs,hint){
+  return h("div",{class:"fld"},h("label",{for:id},label),h("input",Object.assign({id:id},attrs)),hint?h("small",null,hint):null);
+}
+function selectFld(id,label,options,val){
+  var sel=h("select",{id:id},options.map(function(o){ var opt=h("option",{value:o.v},o.l); if(o.v===val)opt.selected=true; return opt; }));
+  return h("div",{class:"fld"},h("label",{for:id},label),sel);
+}
+function showModal(content, onClose){
+  var root=$("modal-root");
+  var bg=h("div",{class:"modal-bg",onclick:function(e){if(e.target===bg){root.replaceChildren();if(onClose)onClose();}}},h("div",{class:"modal"},content));
+  root.replaceChildren(bg);
+}
+function closeModal(){ $("modal-root").replaceChildren(); }
+
+/* ══════════════════════════════════════════════
+   LOGIN SYSTEM
+══════════════════════════════════════════════ */
+var loginMode="login"; // login | forgot
+
+function renderLogin(){
+  var area=$("login-area");
+  area.replaceChildren();
+
+  if(loginMode==="login"){
+    var msg=msgBox();
+    var form=h("form",{class:"panel"},
+      fld("lg-u","Username",{required:true,autocomplete:"username",placeholder:"admin",value:"admin"}),
+      fld("lg-p","Password",{type:"password",required:true,autocomplete:"current-password",placeholder:"••••••••••",value:"StartHere@2026"}),
+      h("div",{style:"display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-top:.4rem"},
+        h("button",{class:"btn",type:"submit",style:"min-width:140px"},"Sign in ▶"),
+        h("button",{class:"link",type:"button",onclick:function(){loginMode="forgot";renderLogin();}},"Forgot password?")
+      ),msg
+    );
+    form.addEventListener("submit",function(ev){
+      ev.preventDefault();
+      var creds=getCreds();
+      var u=$("lg-u").value.trim(), p=$("lg-p").value;
+      if(u===creds.username && p===creds.password){
+        setSession(true); showAdminApp();
+      } else {
+        setMsg(msg,"Incorrect username or password.",false);
+        setTimeout(function(){setMsg(msg,"");},3000);
+      }
+    });
+    area.append(form);
+
+    var notice=h("div",{class:"notice info",style:"margin-top:1rem;font-size:.83rem"},
+      "🔑 <b>Default credentials</b><br>",
+      "Username: <b>admin</b> &nbsp;·&nbsp; Password: <b>StartHere@2026</b><br>",
+      h("span",{style:"color:var(--muted)"},"Change them in Settings after signing in.")
+    );
+    area.append(notice);
+
+  } else {
+    // FORGOT PASSWORD
+    var fmsg=msgBox();
+    var step=1, codeInput="";
+    var fform=h("form",{class:"panel"});
+    function drawForgot(){
+      fform.replaceChildren();
+      if(step===1){
+        fform.append(
+          h("p",{style:"color:var(--muted);margin-bottom:1rem;font-size:.9rem"},"Enter your recovery code to reset your password."),
+          fld("fp-code","Recovery code",{required:true,placeholder:"RECOVER-2026",autocomplete:"off"}),
+          h("div",{class:"row",style:"justify-content:space-between"},
+            h("button",{class:"btn",type:"submit"},"Verify ▶"),
+            h("button",{class:"link",type:"button",onclick:function(){loginMode="login";renderLogin();}},"← Back to sign in")
+          ),fmsg
+        );
+      } else {
+        fform.append(
+          h("p",{style:"color:var(--muted);margin-bottom:1rem;font-size:.9rem"},"Code verified ✓ Set your new username and password."),
+          fld("fp-u","New username",{required:true,value:getCreds().username}),
+          fld("fp-p","New password",{type:"password",required:true,minlength:"8",placeholder:"Min. 8 characters"}),
+          fld("fp-p2","Repeat new password",{type:"password",required:true,minlength:"8"}),
+          h("button",{class:"btn",type:"submit"},"Save and sign in ▶"),fmsg
+        );
+      }
+    }
+    fform.addEventListener("submit",function(ev){
+      ev.preventDefault();
+      if(step===1){
+        var entered=$("fp-code").value.trim();
+        var creds=getCreds();
+        if(entered!==creds.recoveryCode){ setMsg(fmsg,"Wrong recovery code.",false); return; }
+        step=2; drawForgot(); setMsg(fmsg,"Code verified!",true);
+      } else {
+        var nu=$("fp-u").value.trim(), np=$("fp-p").value, np2=$("fp-p2").value;
+        if(np!==np2){ setMsg(fmsg,"Passwords do not match.",false); return; }
+        if(np.length<8){ setMsg(fmsg,"Password must be at least 8 characters.",false); return; }
+        var c=getCreds(); c.username=nu; c.password=np; saveCreds(c);
+        setSession(true); showAdminApp(); say("Password updated. You are now signed in.");
+      }
+    });
+    drawForgot();
+    area.append(fform);
+  }
+}
+
+/* ══════════════════════════════════════════════
+   SHOW / HIDE
+══════════════════════════════════════════════ */
+function showAdminApp(){
+  $("login-screen").hidden=true;
+  $("admin-app").hidden=false;
+  $("admin-email-display").textContent="@"+getCreds().username;
+  buildSidebar();
+  showTab("overview");
+}
+function adminLogout(){
+  setSession(false);
+  $("admin-app").hidden=true;
+  $("login-screen").hidden=false;
+  loginMode="login";
+  renderLogin();
+  say("Signed out.");
+}
+
+/* ══════════════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════════════ */
+var currentTab="overview";
+function buildSidebar(){
+  var side=$("admin-side");
+  side.replaceChildren();
+  function sb(tab,icon,label){
+    var b=h("button",{class:"aside-btn",onclick:function(){showTab(tab);}},h("span",{class:"ic"},icon)," "+label);
+    b.dataset.tab=tab; return b;
+  }
+  side.append(
+    h("div",{class:"section-label"},"Dashboard"), sb("overview","📊","Overview"),
+    h("div",{class:"section-label"},"Content"),
+    sb("workshops","🏫","Workshops"),
+    sb("sessions","📅","Sessions"),
+    sb("livelinks","🔴","Live Links"),
+    sb("competitions","🏆","Competitions"),
+    h("div",{class:"section-label"},"Students"),
+    sb("students","👥","All Students"),
+    sb("registrations","📋","Registrations"),
+    h("div",{class:"section-label"},"Analytics"),
+    sb("analytics","📈","Events Log"),
+    h("div",{class:"section-label"},"Admin"),
+    sb("settings","🔑","Settings")
+  );
+}
+function showTab(tab){
+  currentTab=tab;
+  var side=$("admin-side");
+  if(side) side.querySelectorAll(".aside-btn").forEach(function(b){ b.classList.toggle("on",b.dataset.tab===tab); });
+  var main=$("admin-main"); main.replaceChildren();
+  var MAP={overview:tabOverview,workshops:tabWorkshops,sessions:tabSessions,livelinks:tabLiveLinks,competitions:tabCompetitions,students:tabStudents,registrations:tabRegistrations,analytics:tabAnalytics,settings:tabSettings};
+  (MAP[tab]||tabOverview)(main);
+}
+function goSettings(){ showTab("settings"); }
+
+/* ══════════════════════════════════════════════
+   TAB: OVERVIEW
+══════════════════════════════════════════════ */
+function statCard(num,icon,label){
+  return h("div",{class:"stat-card"},h("div",{class:"num"},icon+" "+num),h("div",{class:"lbl"},label));
+}
+function tabOverview(main){
+  var totalS=DEMO.students.length;
+  var totalE=DEMO.students.reduce(function(a,s){return a+s.enrolled.length;},0);
+  var pubW=DEMO.workshops.filter(function(w){return w.published;}).length;
+  var logins=DEMO.events.filter(function(e){return e.type==="login";}).length;
+  var recClicks=DEMO.events.filter(function(e){return e.type==="watch_recording";}).length;
+  main.append(
+    h("span",{class:"note"},"control room"),
+    h("h2",{style:"margin:.4rem 0 1.2rem"},"Overview"),
+    h("div",{class:"stat-grid"},
+      statCard("🟢 "+DEMO.onlineNow,"","Online now"),
+      statCard(totalS,"👥","Students"),
+      statCard(totalE,"📋","Enrollments"),
+      statCard(pubW+"/"+DEMO.workshops.length,"🏫","Live workshops"),
+      statCard(logins,"🔑","Logins"),
+      statCard(recClicks,"▶","Recording clicks")
+    ),
+    h("h3",{style:"margin-bottom:.7rem"},"Recent events"),
+    h("table",{class:"atbl"},
+      h("thead",null,h("tr",null,h("th",null,"Type"),h("th",null,"Student"),h("th",null,"Workshop"),h("th",null,"Time"))),
+      h("tbody",null,DEMO.events.slice().reverse().slice(0,10).map(function(e){
+        return h("tr",null,
+          h("td",null,h("span",{class:"badge "+(e.type==="login"?"open":e.type==="submit"?"pub":"locked")},e.type.replace(/_/g," "))),
+          h("td",null,e.user,h("br"),h("span",{class:"mono"},e.email)),
+          h("td",null,e.workshop||"—"),
+          h("td",null,h("span",{class:"mono"},fmt(e.at)))
+        );
+      }))
+    )
+  );
+}
+
+/* ══════════════════════════════════════════════
+   TAB: WORKSHOPS
+══════════════════════════════════════════════ */
+function tabWorkshops(main){
+  function render(){
+    main.replaceChildren();
+    main.append(
+      h("div",{class:"row",style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
+        h("h2",null,"Workshops"),
+        h("button",{class:"btn",onclick:function(){workshopModal(null);}},"+ Add Workshop")
+      ),
+      h("table",{class:"atbl"},
+        h("thead",null,h("tr",null,h("th",null,"Level"),h("th",null,"Title"),h("th",null,"Sessions"),h("th",null,"Status"),h("th",null,"Actions"))),
+        h("tbody",null,DEMO.workshops.map(function(w){
+          var sc=(DEMO.sessions[w.id]||[]).length;
+          return h("tr",null,
+            h("td",null,h("span",{class:"mono"},"LV "+pad2(w.level_no))),
+            h("td",null,h("b",null,w.title),h("br"),h("span",{class:"mono"},w.description)),
+            h("td",null,h("span",{class:"mono"},sc+" sessions")),
+            h("td",null,h("span",{class:"badge "+(w.published?"pub":"draft")},w.published?"Published":"Draft")),
+            h("td",null,h("div",{class:"row"},
+              h("button",{class:"btn sm line",onclick:function(){workshopModal(w);}},                "Edit"),
+              h("button",{class:"btn sm "+(w.published?"warn":"success"),onclick:function(){w.published=!w.published;saveData();render();say((w.published?"Published":"Unpublished")+": "+w.title);}},w.published?"Unpublish":"Publish"),
+              h("button",{class:"btn sm danger",onclick:function(){
+                if(!confirm("Delete '"+w.title+"'?"))return;
+                DEMO.workshops=DEMO.workshops.filter(function(x){return x.id!==w.id;});
+                delete DEMO.sessions[w.id];delete DEMO.competitions[w.id];delete DEMO.live_links[w.id];
+                saveData();render();say("Deleted.");
+              }},"Delete")
+            ))
+          );
+        }))
+      )
+    );
+  }
+  function workshopModal(existing){
+    var edit=!!existing,w=existing||{id:uid(),level_no:DEMO.workshops.length+1,title:"",description:"",published:false,dates_text:""};
+    var form=h("form",null,
+      fld("wm-lvl","Level number",{type:"number",required:true,min:"1",value:w.level_no}),
+      fld("wm-title","Title",{required:true,value:w.title}),
+      h("div",{class:"fld"},h("label",{for:"wm-desc"},"Description"),h("textarea",{id:"wm-desc"},w.description||"")),
+      fld("wm-dates","Dates text",{value:w.dates_text||""},"e.g. Every Saturday 10 AM (4 sessions)"),
+      h("div",{class:"fld"},h("label",null,h("input",{type:"checkbox",id:"wm-pub",checked:w.published})," Published (visible to students)")),
+      h("div",{class:"modal-footer"},h("button",{class:"btn line",type:"button",onclick:closeModal},"Cancel"),h("button",{class:"btn",type:"submit"},edit?"Save changes":"Create"))
+    );
+    form.addEventListener("submit",function(ev){
+      ev.preventDefault();
+      w.level_no=parseInt($("wm-lvl").value)||1;
+      w.title=$("wm-title").value.trim();
+      w.description=$("wm-desc").value.trim();
+      w.dates_text=$("wm-dates").value.trim();
+      w.published=$("wm-pub").checked;
+      if(!edit){DEMO.workshops.push(w);DEMO.sessions[w.id]=[];DEMO.competitions[w.id]=[];DEMO.live_links[w.id]="";}
+      DEMO.workshops.sort(function(a,b){return a.level_no-b.level_no;});
+      saveData();closeModal();render();say((edit?"Updated":"Created")+": "+w.title);
+    });
+    showModal([h("h3",null,(edit?"Edit":"New")+" Workshop"),form]);
+    setTimeout(function(){var el=$("wm-title");if(el)el.focus();},50);
+  }
+  render();
+}
+
+/* ══════════════════════════════════════════════
+   TAB: SESSIONS
+══════════════════════════════════════════════ */
+function tabSessions(main){
+  var selWid=DEMO.workshops[0]?DEMO.workshops[0].id:"";
+  function render(){
+    main.replaceChildren();
+    var wSel=h("select",{style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.4rem .7rem;background:var(--bg);color:var(--ink)"},
+      DEMO.workshops.map(function(w){var o=h("option",{value:w.id},"Lv "+pad2(w.level_no)+" — "+w.title);if(w.id===selWid)o.selected=true;return o;})
+    );
+    wSel.addEventListener("change",function(){selWid=wSel.value;render();});
+    var sess=DEMO.sessions[selWid]||[];
+    main.append(
+      h("div",{class:"row",style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
+        h("h2",null,"Sessions"),h("button",{class:"btn",onclick:function(){sessionModal(null);}},"+ Add Session")
+      ),
+      h("div",{class:"row",style:"margin-bottom:1rem"},h("b",null,"Workshop:"),wSel),
+      sess.length?
+        h("table",{class:"atbl"},
+          h("thead",null,h("tr",null,h("th",null,"#"),h("th",null,"Title"),h("th",null,"Date"),h("th",null,"Recording"),h("th",null,"Actions"))),
+          h("tbody",null,sess.map(function(s,i){
+            return h("tr",null,
+              h("td",null,h("span",{class:"mono"},i+1)),
+              h("td",null,h("b",null,s.title),s.description?h("span",{class:"mono",style:"display:block"},s.description):null),
+              h("td",null,h("span",{class:"mono"},fmt(s.starts_at))),
+              h("td",null,s.recording_url?h("a",{href:s.recording_url,target:"_blank",class:"link"},"Link ↗"):h("span",{class:"mono"},"—")),
+              h("td",null,h("div",{class:"row"},
+                h("button",{class:"btn sm line",onclick:function(){sessionModal(s);}},"Edit"),
+                h("button",{class:"btn sm danger",onclick:function(){
+                  if(!confirm("Delete '"+s.title+"'?"))return;
+                  DEMO.sessions[selWid]=DEMO.sessions[selWid].filter(function(x){return x.id!==s.id;});
+                  saveData();render();say("Deleted.");
+                }},"Delete")
+              ))
+            );
+          }))
+        ):h("p",{style:"color:var(--muted);margin-top:1rem"},"No sessions yet.")
+    );
+  }
+  function sessionModal(existing){
+    var edit=!!existing,s=existing||{id:uid(),title:"",starts_at:"",description:"",recording_url:""};
+    var form=h("form",null,
+      fld("sm-title","Session title",{required:true,value:s.title}),
+      fld("sm-date","Date & time",{type:"datetime-local",value:s.starts_at}),
+      h("div",{class:"fld"},h("label",{for:"sm-desc"},"Short description"),h("textarea",{id:"sm-desc",style:"min-height:60px"},s.description||"")),
+      fld("sm-rec","Recording URL",{type:"url",value:s.recording_url||""}),
+      h("div",{class:"modal-footer"},h("button",{class:"btn line",type:"button",onclick:closeModal},"Cancel"),h("button",{class:"btn",type:"submit"},edit?"Save":"Add session"))
+    );
+    form.addEventListener("submit",function(ev){
+      ev.preventDefault();
+      s.title=$("sm-title").value.trim();s.starts_at=$("sm-date").value;
+      s.description=$("sm-desc").value.trim();s.recording_url=$("sm-rec").value.trim();
+      if(!edit)DEMO.sessions[selWid].push(s);
+      saveData();closeModal();render();say((edit?"Updated":"Added")+": "+s.title);
+    });
+    showModal([h("h3",null,(edit?"Edit":"New")+" Session — "+wName(selWid)),form]);
+    setTimeout(function(){var el=$("sm-title");if(el)el.focus();},50);
+  }
+  render();
+}
+
+/* ══════════════════════════════════════════════
+   TAB: LIVE LINKS
+══════════════════════════════════════════════ */
+function tabLiveLinks(main){
+  main.append(
+    h("h2",{style:"margin-bottom:.6rem"},"Live Links"),
+    h("p",{style:"color:var(--muted);margin-bottom:1.4rem;font-size:.9rem"},"Set the live meeting URL per workshop. Students see a 'Join Live' button when a URL is saved."),
+    h("div",{class:"stack"},
+      DEMO.workshops.map(function(w){
+        var msg=msgBox();
+        var inp=h("input",{type:"url",placeholder:"https://meet.google.com/...",value:DEMO.live_links[w.id]||"",style:"flex:1;font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.55rem .8rem;min-height:42px;background:var(--bg);color:var(--ink)"});
+        return h("div",{class:"panel"},
+          h("div",{class:"row",style:"justify-content:space-between;margin-bottom:.8rem"},
+            h("h3",null,"Lv "+pad2(w.level_no)+": "+w.title),
+            h("span",{class:"badge "+(w.published?"pub":"draft")},w.published?"Published":"Draft")
+          ),
+          h("div",{class:"row"},inp,
+            h("button",{class:"btn sm",onclick:function(){DEMO.live_links[w.id]=inp.value.trim();saveData();setMsg(msg,inp.value.trim()?"Link saved ✓":"Cleared.",true);}},  "Save"),
+            inp.value?h("button",{class:"btn sm danger",onclick:function(){inp.value="";DEMO.live_links[w.id]="";saveData();setMsg(msg,"Link removed.",true);}},"Clear"):null
+          ),msg
+        );
+      })
+    )
+  );
+}
+
+/* ══════════════════════════════════════════════
+   TAB: COMPETITIONS
+══════════════════════════════════════════════ */
+function tabCompetitions(main){
+  var selWid=DEMO.workshops[0]?DEMO.workshops[0].id:"";
+  function render(){
+    main.replaceChildren();
+    var wSel=h("select",{style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.4rem .7rem;background:var(--bg);color:var(--ink)"},
+      DEMO.workshops.map(function(w){var o=h("option",{value:w.id},"Lv "+pad2(w.level_no)+" — "+w.title);if(w.id===selWid)o.selected=true;return o;})
+    );
+    wSel.addEventListener("change",function(){selWid=wSel.value;render();});
+    var comps=DEMO.competitions[selWid]||[];
+    main.append(
+      h("div",{class:"row",style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
+        h("h2",null,"Competitions"),h("button",{class:"btn",onclick:function(){compModal(null);}},"+ Add Competition")
+      ),
+      h("div",{class:"row",style:"margin-bottom:1rem"},h("b",null,"Workshop:"),wSel),
+      comps.length?
+        h("div",{class:"stack"},comps.map(function(c){
+          return h("div",{class:"panel"},
+            h("div",{class:"row",style:"justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.6rem"},
+              h("div",null,h("h3",null,c.title),c.description?h("p",{style:"color:var(--muted);font-size:.88rem;margin-top:.2rem"},c.description):null),
+              h("span",{class:"badge "+c.status},c.status)
+            ),
+            h("p",{class:"mono",style:"margin-bottom:.8rem"},c.fields.length+" fields · closes: "+(c.closes_at?fmt(c.closes_at):"open-ended")),
+            h("div",{class:"row"},
+              h("button",{class:"btn sm line",onclick:function(){compModal(c);}},"Edit"),
+              c.status!=="open"   ?h("button",{class:"btn sm success",onclick:function(){c.status="open";saveData();render();say("Opened: "+c.title);}},  "Open"):null,
+              c.status!=="closed" ?h("button",{class:"btn sm warn",onclick:function(){c.status="closed";saveData();render();say("Closed: "+c.title);}},   "Close"):null,
+              c.status!=="locked" ?h("button",{class:"btn sm line",onclick:function(){c.status="locked";saveData();render();say("Locked: "+c.title);}},   "Lock"):null,
+              h("button",{class:"btn sm danger",onclick:function(){
+                if(!confirm("Delete '"+c.title+"'?"))return;
+                DEMO.competitions[selWid]=DEMO.competitions[selWid].filter(function(x){return x.id!==c.id;});
+                saveData();render();say("Deleted.");
+              }},"Delete")
+            )
+          );
+        })):
+        h("p",{style:"color:var(--muted);margin-top:1rem"},"No competitions yet for this workshop.")
+    );
+  }
+  function compModal(existing){
+    var edit=!!existing,c=existing||{id:uid(),title:"",description:"",status:"locked",closes_at:"",workshop_id:selWid,fields:[]};
+    var fieldRows=h("div",{style:"display:grid;gap:.5rem;margin-bottom:.8rem"});
+    function redraw(){
+      fieldRows.replaceChildren();
+      c.fields.forEach(function(f,i){
+        fieldRows.append(h("div",{class:"row"},
+          h("input",{value:f.label,placeholder:"Field label",style:"flex:1;font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.45rem .7rem",oninput:function(e){f.label=e.target.value;}}),
+          h("select",{style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.45rem",onchange:function(e){f.type=e.target.value;}},
+            ["short","long","url","number","email"].map(function(t){var o=h("option",{value:t},t);if(t===f.type)o.selected=true;return o;})
+          ),
+          h("label",{style:"display:flex;align-items:center;gap:.3rem;font-size:.8rem;white-space:nowrap;cursor:pointer"},
+            h("input",{type:"checkbox",checked:f.required,style:"width:18px;height:18px;accent-color:var(--pink)",onchange:function(e){f.required=e.target.checked;}}),"Req."
+          ),
+          h("button",{class:"btn sm danger",type:"button",onclick:function(){c.fields.splice(i,1);redraw();}},          "✕")
+        ));
+      });
+    }
+    redraw();
+    var form=h("form",null,
+      fld("cm-title","Title",{required:true,value:c.title}),
+      h("div",{class:"fld"},h("label",{for:"cm-desc"},"Description"),h("textarea",{id:"cm-desc",style:"min-height:55px"},c.description||"")),
+      selectFld("cm-status","Status",[{v:"locked",l:"Locked"},{v:"open",l:"Open"},{v:"closed",l:"Closed"}],c.status),
+      fld("cm-closes","Closes at",{type:"datetime-local",value:c.closes_at||""}),
+      h("h4",{style:"margin:.8rem 0 .4rem"},"Form fields"),
+      fieldRows,
+      h("button",{class:"btn sm line",type:"button",onclick:function(){c.fields.push({key:"f"+uid(),label:"",type:"short",required:false});redraw();}},"+ Add field"),
+      h("div",{class:"modal-footer"},h("button",{class:"btn line",type:"button",onclick:closeModal},"Cancel"),h("button",{class:"btn",type:"submit"},edit?"Save":"Create"))
+    );
+    form.addEventListener("submit",function(ev){
+      ev.preventDefault();
+      c.title=$("cm-title").value.trim();c.description=$("cm-desc").value.trim();
+      c.status=$("cm-status").value;c.closes_at=$("cm-closes").value;
+      c.fields.forEach(function(f,i){f.key=f.key||("f"+i);});
+      if(!edit)DEMO.competitions[selWid].push(c);
+      saveData();closeModal();render();say((edit?"Updated":"Created")+": "+c.title);
+    });
+    showModal([h("h3",null,(edit?"Edit":"New")+" Competition"),form]);
+    setTimeout(function(){var el=$("cm-title");if(el)el.focus();},50);
+  }
+  render();
+}
+
+/* ══════════════════════════════════════════════
+   TAB: STUDENTS
+══════════════════════════════════════════════ */
+function tabStudents(main){
+  function render(){
+    main.replaceChildren();
+    main.append(
+      h("h2",{style:"margin-bottom:1.2rem"},"All Students ("+DEMO.students.length+")"),
+      h("table",{class:"atbl"},
+        h("thead",null,h("tr",null,
+          h("th",null,"Name"),h("th",null,"Email"),h("th",null,"Year"),
+          h("th",null,"Enrolled"),h("th",null,"WhatsApp"),h("th",null,"Joined"),h("th",null,"Role"),h("th",null,"Actions")
+        )),
+        h("tbody",null,DEMO.students.map(function(stu){
+          return h("tr",null,
+            h("td",null,h("b",null,stu.full_name)),
+            h("td",null,h("span",{class:"mono"},stu.email)),
+            h("td",null,stu.year||"—"),
+            h("td",null,stu.enrolled.map(wName).join(", ")||"None"),
+            h("td",null,stu.phone?h("a",{href:"https://wa.me/91"+stu.phone,target:"_blank",class:"link"},stu.phone):h("span",{class:"mono"},"—")),
+            h("td",null,h("span",{class:"mono"},fmtDate(stu.joined))),
+            h("td",null,h("span",{class:"badge "+(stu.role==="admin"?"admin":"locked")},stu.role)),
+            h("td",null,h("div",{class:"row"},
+              stu.role!=="admin"
+                ?h("button",{class:"btn sm warn",onclick:function(){stu.role="admin";render();say("Made admin: "+stu.full_name);}},"Make Admin")
+                :h("button",{class:"btn sm line",onclick:function(){stu.role="user";render();say("Removed admin: "+stu.full_name);}},"Remove Admin"),
+              h("button",{class:"btn sm danger",onclick:function(){
+                if(!confirm("Remove "+stu.full_name+"?"))return;
+                DEMO.students=DEMO.students.filter(function(x){return x.id!==stu.id;});
+                render();say("Removed.");
+              }},"Remove")
+            ))
+          );
+        }))
+      )
+    );
+  }
+  render();
+}
+
+/* ══════════════════════════════════════════════
+   TAB: REGISTRATIONS
+══════════════════════════════════════════════ */
+function tabRegistrations(main){
+  var selWid=DEMO.workshops[0]?DEMO.workshops[0].id:"";
+  function render(){
+    main.replaceChildren();
+    var wSel=h("select",{style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.4rem .7rem;background:var(--bg);color:var(--ink)"},
+      DEMO.workshops.map(function(w){var o=h("option",{value:w.id},"Lv "+pad2(w.level_no)+" — "+w.title);if(w.id===selWid)o.selected=true;return o;})
+    );
+    wSel.addEventListener("change",function(){selWid=wSel.value;render();});
+    var enrolled=DEMO.students.filter(function(s){return s.enrolled.indexOf(selWid)>=0;});
+    main.append(
+      h("h2",{style:"margin-bottom:1.2rem"},"Registrations"),
+      h("div",{class:"row",style:"margin-bottom:1rem"},h("b",null,"Workshop:"),wSel),
+      h("p",{class:"mono",style:"margin-bottom:.8rem"},enrolled.length+" students enrolled"),
+      enrolled.length?
+        h("table",{class:"atbl"},
+          h("thead",null,h("tr",null,h("th",null,"Name"),h("th",null,"Email"),h("th",null,"Year"),h("th",null,"WhatsApp"),h("th",null,"Joined"))),
+          h("tbody",null,enrolled.map(function(stu){
+            return h("tr",null,
+              h("td",null,h("b",null,stu.full_name)),
+              h("td",null,h("span",{class:"mono"},stu.email)),
+              h("td",null,stu.year||"—"),
+              h("td",null,stu.phone?h("a",{href:"https://wa.me/91"+stu.phone,target:"_blank",class:"link"},stu.phone):h("span",{class:"mono"},"—")),
+              h("td",null,h("span",{class:"mono"},fmtDate(stu.joined)))
+            );
+          }))
+        ):
+        h("p",{style:"color:var(--muted);margin-top:1rem"},"No students enrolled yet.")
+    );
+  }
+  render();
+}
+
+/* ══════════════════════════════════════════════
+   TAB: ANALYTICS
+══════════════════════════════════════════════ */
+function tabAnalytics(main){
+  var filter="all";
+  var types=["all","login","visit","join_live","watch_recording","submit"];
+  function render(){
+    main.replaceChildren();
+    var onlineCard=h("div",{class:"stat-card",style:"display:inline-block;margin-bottom:1.4rem"},
+      h("div",{class:"num"},"🟢 "+DEMO.onlineNow),
+      h("div",{class:"lbl"},"Online now"),
+      h("button",{class:"btn sm line",style:"margin-top:.5rem",onclick:function(){
+        var v=prompt("Set online count (demo):",DEMO.onlineNow);
+        if(v!==null&&!isNaN(+v)){DEMO.onlineNow=+v;render();}
+      }},"Change")
+    );
+    var tabs=h("div",{class:"tabs",style:"margin-bottom:1rem"},
+      types.map(function(t){
+        return h("button",{class:filter===t?"on":"",onclick:function(){filter=t;render();}},
+          t==="all"?"All events":t.replace(/_/g," "));
+      })
+    );
+    var evts=filter==="all"?DEMO.events:DEMO.events.filter(function(e){return e.type===filter;});
+    main.append(
+      h("h2",{style:"margin-bottom:.8rem"},"Events Log"),onlineCard,
+      h("h3",{style:"margin-bottom:.5rem"},"Filter"),tabs,
+      h("p",{class:"mono",style:"margin-bottom:.7rem"},evts.length+" events"),
+      evts.length?
+        h("table",{class:"atbl"},
+          h("thead",null,h("tr",null,h("th",null,"Type"),h("th",null,"Student"),h("th",null,"Email"),h("th",null,"Workshop"),h("th",null,"Time"))),
+          h("tbody",null,evts.slice().reverse().map(function(e){
+            return h("tr",null,
+              h("td",null,h("span",{class:"badge "+(e.type==="login"?"open":e.type==="submit"?"pub":"locked")},e.type.replace(/_/g," "))),
+              h("td",null,e.user),
+              h("td",null,h("span",{class:"mono"},e.email)),
+              h("td",null,e.workshop||"—"),
+              h("td",null,h("span",{class:"mono"},fmt(e.at)))
+            );
+          }))
+        ):h("p",{style:"color:var(--muted);margin-top:1rem"},"No events yet.")
+    );
+  }
+  render();
+}
+
+/* ══════════════════════════════════════════════
+   TAB: SETTINGS  (change username / password / recovery code)
+══════════════════════════════════════════════ */
+function tabSettings(main){
+  var creds=getCreds();
+  var msg1=msgBox(), msg2=msgBox();
+
+  // Change username & password
+  var f1=h("form",{class:"panel"},
+    h("h3",{style:"margin-bottom:1rem"},"Change username & password"),
+    fld("st-u","New username",{required:true,value:creds.username}),
+    fld("st-p","New password",{type:"password",required:true,minlength:"8",placeholder:"Min. 8 characters"}),
+    fld("st-p2","Repeat new password",{type:"password",required:true,minlength:"8"}),
+    fld("st-cur","Current password (to confirm)",{type:"password",required:true}),
+    h("button",{class:"btn",type:"submit"},"Save changes"),msg1
+  );
+  f1.addEventListener("submit",function(ev){
+    ev.preventDefault();
+    var cur=getCreds();
+    if($("st-cur").value!==cur.password){setMsg(msg1,"Current password is wrong.",false);return;}
+    if($("st-p").value!==$("st-p2").value){setMsg(msg1,"New passwords do not match.",false);return;}
+    cur.username=$("st-u").value.trim();
+    cur.password=$("st-p").value;
+    saveCreds(cur);
+    $("admin-email-display").textContent="@"+cur.username;
+    $("st-p").value="";$("st-p2").value="";$("st-cur").value="";
+    setMsg(msg1,"Saved ✓",true);say("Credentials updated.");
+  });
+
+  // Change recovery code
+  var f2=h("form",{class:"panel"},
+    h("h3",{style:"margin-bottom:1rem"},"Change recovery code"),
+    h("p",{style:"color:var(--muted);margin-bottom:.8rem;font-size:.9rem"},"This code lets you reset your password if you forget it. Keep it safe — don't share it."),
+    fld("st-rc","New recovery code",{required:true,value:creds.recoveryCode,autocomplete:"off"}),
+    fld("st-rcp","Current password (to confirm)",{type:"password",required:true}),
+    h("button",{class:"btn",type:"submit"},"Update recovery code"),msg2
+  );
+  f2.addEventListener("submit",function(ev){
+    ev.preventDefault();
+    var cur=getCreds();
+    if($("st-rcp").value!==cur.password){setMsg(msg2,"Current password is wrong.",false);return;}
+    var newCode=$("st-rc").value.trim();
+    if(!newCode){setMsg(msg2,"Recovery code cannot be empty.",false);return;}
+    cur.recoveryCode=newCode; saveCreds(cur);
+    setMsg(msg2,"Recovery code updated ✓",true);say("Recovery code saved.");
+  });
+
+  main.append(
+    h("span",{class:"note"},"admin settings"),
+    h("h2",{style:"margin:.4rem 0 1.2rem"},"Settings"),
+    h("div",{class:"notice info"},"⚠ These credentials are stored in this browser's localStorage. They protect this admin panel independently of the student login."),
+    h("div",{class:"stack"},f1,f2,
+      h("div",{class:"panel"},
+        h("h3",{style:"margin-bottom:.8rem"},"Sign out"),
+        h("p",{style:"color:var(--muted);margin-bottom:.8rem;font-size:.9rem"},"Signing out clears the session. You'll need to log in again to access the admin panel."),
+        h("button",{class:"btn danger",onclick:adminLogout},"Sign out now")
+      )
+    )
+  );
+}
+
+/* ══════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════ */
+if(getSession()){
+  showAdminApp();
+} else {
+  renderLogin();
+}
+
+})();
+</script>
+</body>
+</html>
