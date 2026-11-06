@@ -840,6 +840,14 @@ addEventListener("hashchange", route);
 
 // Initialize on page load
 (async function init(){
+  if (location.hash && location.hash.includes("error_description")) {
+    var params = new URLSearchParams(location.hash.slice(1));
+    var desc = params.get("error_description");
+    if (desc) {
+      say(decodeURIComponent(desc.replace(/\+/g, " ")), 5000);
+      history.replaceState(null, "", location.pathname);
+    }
+  }
   await refreshAuth();
   hud();
   route();
