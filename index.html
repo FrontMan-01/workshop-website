@@ -103,42 +103,11 @@ h1 span{color:var(--yellow);text-shadow:4px 4px 0 var(--yshadow)}
 .big{font-size:clamp(1.3rem,3vw,2rem);font-weight:500;line-height:1.4}
 mark{border-radius:4px;padding:0 .2em;color:inherit}
 .m1{background:var(--sun)}.m2{background:var(--mint)}.m3{background:var(--rose)}
-/* demo bar */
-.demo-bar{background:var(--yellow);color:#14141A;text-align:center;font:600 .78rem ui-monospace,Menlo,monospace;padding:.45rem 1rem;border-bottom:2px solid var(--ink)}
-/* ── ADMIN LAYOUT ── */
-.admin-wrap{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 58px);gap:0}
-.admin-side{background:var(--panel);border-right:2px solid var(--ink);padding:1.2rem .8rem;display:flex;flex-direction:column;gap:.2rem;position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto}
-.admin-side .section-label{font:600 .65rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:.6rem .5rem .3rem;margin-top:.6rem}
-.admin-side .section-label:first-child{margin-top:0}
-.aside-btn{display:flex;align-items:center;gap:.6rem;width:100%;background:none;border:0;border-radius:8px;padding:.55rem .7rem;font:500 .82rem "Inter",sans-serif;color:var(--ink);cursor:pointer;text-align:left;transition:background .12s}
-.aside-btn:hover{background:var(--bg)}
-.aside-btn.on{background:var(--ink);color:var(--bg)}
-.aside-btn .ic{font-size:1rem;line-height:1;width:20px;text-align:center}
-.admin-main{padding:clamp(1.2rem,3vw,2rem);overflow-y:auto}
-/* admin tables */
-.atbl{width:100%;border-collapse:collapse;font-size:.88rem;margin-top:.8rem}
-.atbl th{font:600 .72rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:.6rem .8rem;border-bottom:2px solid var(--ink);white-space:nowrap}
-.atbl td{padding:.65rem .8rem;border-bottom:1px solid var(--line);vertical-align:middle}
-.atbl tr:hover td{background:var(--bg)}
-/* stat cards */
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-bottom:1.6rem}
-.stat-card{background:var(--panel);border:2px solid var(--ink);border-radius:12px;padding:1rem 1.2rem;box-shadow:4px 4px 0 var(--ink)}
-.stat-card .num{font:700 2.2rem "Pixelify Sans",monospace;color:var(--pink);line-height:1}
-.stat-card .lbl{font:500 .75rem ui-monospace,Menlo,monospace;color:var(--muted);margin-top:.3rem}
-/* badges */
-.badge{display:inline-block;font:600 .65rem ui-monospace,Menlo,monospace;text-transform:uppercase;padding:.2rem .5rem;border-radius:4px;letter-spacing:.04em}
-.badge.open{background:var(--mint);color:#14141A}
-.badge.locked{background:var(--line);color:var(--muted)}
-.badge.closed{background:var(--rose);color:#14141A}
-.badge.admin{background:var(--pink);color:#fff}
-.badge.pub{background:var(--mint);color:#14141A}
-.badge.draft{background:var(--sun);color:#14141A}
 /* modal */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:center;justify-content:center;padding:1rem}
 .modal{background:var(--panel);border:3px solid var(--ink);border-radius:16px;box-shadow:8px 8px 0 var(--ink);padding:1.6rem;width:min(560px,100%);max-height:90vh;overflow-y:auto}
 .modal h3{margin-bottom:1.2rem}
 .modal-footer{display:flex;gap:.8rem;justify-content:flex-end;margin-top:1.2rem;flex-wrap:wrap}
-@media(max-width:700px){.admin-wrap{grid-template-columns:1fr}.admin-side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:2px solid var(--ink)}.aside-btn{width:auto}}
 </style>
 </head>
 <body>
@@ -153,223 +122,195 @@ mark{border-radius:4px;padding:0 .2em;color:inherit}
 <div id="toast" role="status" aria-live="polite"></div>
 <footer><div class="wrap"><span>&copy; start.here &middot; a student-led learning community</span></div></footer>
 
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <script>
 (function(){
 "use strict";
 
-/* ══════════════════════════════
-   DEMO DATA  (lives in memory)
-══════════════════════════════ */
-var DEMO = {
-  user: { id:"u0", email:"student@demo.com" },
-  profile: { id:"u0", full_name:"Demo Student", phone:"", year:"", role:"user" },
-  workshops: [
-    {id:"w1",level_no:1,title:"Intro to Web Dev",description:"HTML, CSS, and how the internet works.",published:true,dates_text:"Every Saturday 10 AM – 12 PM (4 sessions)"},
-    {id:"w2",level_no:2,title:"JavaScript Fundamentals",description:"Variables, functions, loops, DOM.",published:true,dates_text:"Sundays 11 AM, starting 15 Nov"},
-    {id:"w3",level_no:3,title:"Building with React",description:"Components, state, props and hooks.",published:true,dates_text:"TBA after Level 2"},
-    {id:"w4",level_no:4,title:"Backend with Node.js",description:"APIs, routing, and a real database.",published:false,dates_text:"TBA"},
-    {id:"w5",level_no:5,title:"Databases & SQL",description:"Postgres, queries, schema design.",published:false,dates_text:"TBA"},
-  ],
-  sessions:{
-    "w1":[
-      {id:"s1a",title:"How browsers work",starts_at:"2026-11-08T10:00",description:"Request/response, HTML parsing",recording_url:"https://youtube.com"},
-      {id:"s1b",title:"Your first HTML page",starts_at:"2026-11-15T10:00",description:"Tags, structure, attributes",recording_url:"https://youtube.com"},
-      {id:"s1c",title:"CSS basics",starts_at:"2026-11-22T10:00",description:"Selectors, box model, flexbox",recording_url:""},
-      {id:"s1d",title:"Putting it together",starts_at:"2026-11-29T10:00",description:"Build a mini portfolio page",recording_url:""}
-    ],
-    "w2":[
-      {id:"s2a",title:"Variables & types",starts_at:"2026-11-15T11:00",description:"",recording_url:""},
-      {id:"s2b",title:"Functions & scope",starts_at:"2026-11-22T11:00",description:"",recording_url:""},
-      {id:"s2c",title:"Arrays & loops",starts_at:"2026-11-29T11:00",description:"",recording_url:""}
-    ],
-    "w3":[],"w4":[],"w5":[]
-  },
-  live_links:{"w1":"https://meet.google.com/demo","w2":"","w3":"","w4":"","w5":""},
-  competitions:{
-    "w1":[{id:"c1",title:"Mini Quiz",description:"Answer 3 questions about Level 1.",status:"open",closes_at:"2026-11-30T23:59",workshop_id:"w1",fields:[{key:"q1",label:"What does HTML stand for?",type:"short",required:true},{key:"q2",label:"Name one CSS property.",type:"short",required:true},{key:"q3",label:"What confused you most?",type:"long",required:false}]}],
-    "w2":[{id:"c2",title:"JS Hackathon",description:"Build a tiny app in 2 hours.",status:"locked",closes_at:"",workshop_id:"w2",fields:[]}],
-    "w3":[],"w4":[],"w5":[]
-  },
-  enrollments:{},
-  progress:{},
-  submissions:{},
-  students:[],
-  events:[],
-  onlineNow:1
+var C = window.APP_CONFIG || {};
+var sb = (window.supabase && C.SUPABASE_URL && C.SUPABASE_KEY)
+  ? window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_KEY)
+  : null;
+
+var S = {
+  user: null,
+  profile: null,
+  needPw: false,
+  open: {}
 };
-var _nextId = 100;
-function uid(){ return "x"+(++_nextId); }
 
-/* ── LOAD ADMIN CHANGES FROM localStorage ── */
-var DATA_KEY = "sh_site_data";
-function loadAdminData(){
-  try{
-    var saved = JSON.parse(localStorage.getItem(DATA_KEY));
-    if(!saved) return;
-    if(saved.workshops   && saved.workshops.length)   DEMO.workshops    = saved.workshops;
-    if(saved.sessions)                                DEMO.sessions     = saved.sessions;
-    if(saved.live_links)                              DEMO.live_links   = saved.live_links;
-    if(saved.competitions)                            DEMO.competitions = saved.competitions;
-  }catch(e){}
-}
-loadAdminData();
-
-/* ── SAVE STUDENT DATA back to localStorage ── */
-var STU_DATA_KEY = "sh_student_data";
-function saveStudentData(){
-  try{
-    localStorage.setItem(STU_DATA_KEY, JSON.stringify({
-      enrollments: DEMO.enrollments,
-      progress: DEMO.progress,
-      submissions: DEMO.submissions,
-      registeredStudents: DEMO.registeredStudents || []
-    }));
-  }catch(e){}
-}
-function loadStudentData(){
-  try{
-    var saved = JSON.parse(localStorage.getItem(STU_DATA_KEY));
-    if(!saved) return;
-    if(saved.enrollments)  DEMO.enrollments  = saved.enrollments;
-    if(saved.progress)     DEMO.progress     = saved.progress;
-    if(saved.submissions)  DEMO.submissions  = saved.submissions;
-    if(saved.registeredStudents) DEMO.registeredStudents = saved.registeredStudents;
-  }catch(e){}
-}
-loadStudentData();
-
-/* ══════════════════════════════
-   STATE
-══════════════════════════════ */
-var S = { loggedIn:false, needPw:false };
-
-/* ══════════════════════════════
-   HELPERS
-══════════════════════════════ */
 var $ = function(id){ return document.getElementById(id); };
 var app = $("app");
 var toastEl = $("toast"), tt;
-function say(m,dur){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(tt); tt=setTimeout(function(){ toastEl.classList.remove("show"); },dur||3000); }
-function go(name){ location.hash = name?"#"+name:""; }
-function pad2(n){ return (n<10?"0":"")+n; }
-function fmt(t){ return t?new Date(t).toLocaleString([],{dateStyle:"medium",timeStyle:"short"}):"TBA"; }
-function fmtDate(t){ return t?new Date(t).toLocaleDateString([],{dateStyle:"medium"}):"TBA"; }
-function wName(id){ var w=DEMO.workshops.find(function(x){return x.id===id;}); return w?w.title:id; }
 
-function h(tag,props){
-  var e=document.createElement(tag),k,kids=Array.prototype.slice.call(arguments,2);
-  props=props||{};
-  for(k in props){var v=props[k];
-    if(k==="class")e.className=v;
-    else if(k.slice(0,2)==="on")e.addEventListener(k.slice(2),v);
-    else if(v===true)e.setAttribute(k,"");
-    else if(v!==false&&v!=null)e.setAttribute(k,v);
+function say(m, dur){
+  toastEl.textContent = m;
+  toastEl.classList.add("show");
+  clearTimeout(tt);
+  tt = setTimeout(function(){ toastEl.classList.remove("show"); }, dur || 3200);
+}
+
+function go(name){
+  var target = name ? "#" + name : "";
+  if ((location.hash || "") === target) route();
+  else location.hash = name;
+}
+
+function pad2(n){ return (n < 10 ? "0" : "") + n; }
+function fmt(t){ return t ? new Date(t).toLocaleString([], {dateStyle:"medium", timeStyle:"short"}) : "Date to be announced"; }
+function isAdmin(){ return !!(S.profile && S.profile.role === "admin"); }
+
+function h(tag, props){
+  var e = document.createElement(tag), k, kids = Array.prototype.slice.call(arguments, 2);
+  props = props || {};
+  for(k in props){
+    var v = props[k];
+    if(k === "class") e.className = v;
+    else if(k.slice(0, 2) === "on") e.addEventListener(k.slice(2), v);
+    else if(v === true) e.setAttribute(k, "");
+    else if(v !== false && v != null) e.setAttribute(k, v);
   }
-  (function add(list){list.forEach(function(c){if(Array.isArray(c))return add(c);if(c==null||c===false)return;e.appendChild(c.nodeType?c:document.createTextNode(String(c)));});})(kids);
+  (function add(list){
+    list.forEach(function(c){
+      if(Array.isArray(c)) return add(c);
+      if(c == null || c === false) return;
+      e.appendChild(c.nodeType ? c : document.createTextNode(String(c)));
+    });
+  })(kids);
   return e;
 }
-function msgBox(){ return h("p",{class:"msg",role:"status","aria-live":"polite"}); }
-function setMsg(el,t,bad){ el.textContent=t||""; el.className="msg"+(bad?" err":bad===false?" ok":""); }
-function fld(id,label,attrs,hint){
-  return h("div",{class:"fld"},h("label",{for:id},label),h("input",Object.assign({id:id},attrs)),hint?h("small",null,hint):null);
-}
-function selectFld(id,label,options,val){
-  var sel=h("select",{id:id},options.map(function(o){
-    var opt=h("option",{value:o.v},o.l);
-    if(o.v===val)opt.selected=true;
-    return opt;
-  }));
-  return h("div",{class:"fld"},h("label",{for:id},label),sel);
+
+function msgBox(){ return h("p", {class:"msg", role:"status", "aria-live":"polite"}); }
+function setMsg(el, t, bad){ el.textContent = t || ""; el.className = "msg" + (bad ? " err" : bad === false ? " ok" : ""); }
+
+function fld(id, label, attrs, hint){
+  return h("div", {class:"fld"},
+    h("label", {for:id}, label),
+    h("input", Object.assign({id:id}, attrs)),
+    hint ? h("small", null, hint) : null
+  );
 }
 
-/* ── MODAL ── */
 function showModal(content, onClose){
-  var root=$("modal-root");
-  var bg=h("div",{class:"modal-bg",onclick:function(e){if(e.target===bg){root.replaceChildren();if(onClose)onClose();}}},
-    h("div",{class:"modal"},content));
+  var root = $("modal-root");
+  var bg = h("div", {class:"modal-bg", onclick:function(e){ if(e.target === bg){ root.replaceChildren(); if(onClose) onClose(); } }},
+    h("div", {class:"modal"}, content));
   root.replaceChildren(bg);
 }
 function closeModal(){ $("modal-root").replaceChildren(); }
+
+/* ── SUPABASE AUTH & STATE REFRESH ── */
+async function refreshAuth(){
+  if (!sb) return;
+  try {
+    var sessionRes = await sb.auth.getSession();
+    var session = sessionRes.data && sessionRes.data.session;
+    S.user = session ? session.user : null;
+    S.profile = null;
+    if (S.user) {
+      var pRes = await sb.from("profiles").select("*").eq("id", S.user.id).maybeSingle();
+      S.profile = pRes.data || null;
+    }
+  } catch (err) {
+    console.warn("Auth check error:", err);
+    S.user = null;
+    S.profile = null;
+  }
+}
+
+async function signOut(){
+  if (sb) {
+    try { await sb.auth.signOut(); } catch(e){}
+  }
+  S.user = null;
+  S.profile = null;
+  S.needPw = false;
+  hud();
+  go("");
+  say("Signed out.");
+}
 
 /* ══════════════════════════════
    HUD
 ══════════════════════════════ */
 function hud(){
-  var box=$("hud"); box.replaceChildren();
-  if(!S.loggedIn){
-    box.appendChild(h("button",{class:"start-btn",onclick:function(){go("auth");}},"Sign in ▶"));
+  var box = $("hud");
+  box.replaceChildren();
+  if(!S.user){
+    box.appendChild(h("button", {class:"start-btn", onclick:function(){ go("auth"); }}, "Sign in ▶"));
     return;
   }
-  var name=DEMO.profile.full_name||DEMO.user.email;
+  var name = (S.profile && S.profile.full_name) || S.user.email;
   box.append(
-    h("span",{class:"mono"},name),
-    h("button",{class:"link",onclick:function(){go("workshops");}},  "Workshops"),
-    h("button",{class:"link",onclick:function(){go("account");}},    "Account"),
-    h("button",{class:"link",onclick:signOut},"Sign out")
+    h("span", {class:"mono"}, name),
+    h("button", {class:"link", onclick:function(){ go("workshops"); }}, "Workshops"),
+    h("button", {class:"link", onclick:function(){ go("account"); }}, "Account"),
+    isAdmin() ? h("a", {class:"link", href:"admin.html", style:"color:var(--pink);font-weight:700"}, "Admin ↗") : null,
+    h("button", {class:"link", onclick:signOut}, "Sign out")
   );
 }
-function signOut(){ S.loggedIn=false; S.needPw=false; hud(); go(""); say("Signed out."); }
 
 /* ══════════════════════════════
-   WELCOME
+   WELCOME VIEW
 ══════════════════════════════ */
 function welcome(){
   app.replaceChildren(
-    h("section",{class:"wrap hero"},
-      h("span",{class:"note"},"new game:"),h("br"),
-      h("div",{class:"frame"},h("h1",null,"START ",h("span",null,"HERE"))),
-      h("span",{class:"tag"},"FREE WORKSHOP · FOR STUDENTS · ONLINE"),
-      h("p",{class:"tagline"},"Learn tech from zero, one level at a time."),
-      h("div",{class:"cta"},
-        h("button",{class:"btn",onclick:function(){go("auth");}},"Save my seat ▶"),
-        h("button",{class:"link",onclick:function(){var el=document.getElementById("about");if(el)el.scrollIntoView({behavior:"smooth"});}},"Learn more →")
+    h("section", {class:"wrap hero"},
+      h("span", {class:"note"}, "new game:"), h("br"),
+      h("div", {class:"frame"}, h("h1", null, "START ", h("span", null, "HERE"))),
+      h("span", {class:"tag"}, "FREE WORKSHOP · FOR STUDENTS · ONLINE"),
+      h("p", {class:"tagline"}, "Learn tech from zero, one level at a time."),
+      h("div", {class:"cta"},
+        h("button", {class:"btn", onclick:function(){ go(S.user ? "workshops" : "auth"); }}, S.user ? "Go to Workshops ▶" : "Save my seat ▶"),
+        h("button", {class:"link", onclick:function(){ var el = document.getElementById("about"); if(el) el.scrollIntoView({behavior:"smooth"}); }}, "Learn more →")
       ),
-      h("div",{class:"stks"},
-        h("span",{class:"stk s1"},"★ Free workshop"),
-        h("span",{class:"stk s2"},"♥ Live + recorded"),
-        h("span",{class:"stk s3"},"● 7 levels")
+      h("div", {class:"stks"},
+        h("span", {class:"stk s1"}, "★ Free workshop"),
+        h("span", {class:"stk s2"}, "♥ Live + recorded"),
+        h("span", {class:"stk s3"}, "● 7 levels")
       ),
-      h("div",{class:"ground"},
-        h("svg",{viewBox:"0 0 1200 130",preserveAspectRatio:"none"},
-          h("path",{d:"M0 70 Q150 10 300 60 T600 60 T900 55 T1200 60 V110 H0Z",fill:"#4DCB85"}),
-          h("path",{d:"M0 110 H1200 V130 H0Z",fill:"#5A3A2B"}),
-          h("path",{d:"M0 110 H1200",stroke:"#14141A","stroke-width":"4"})
+      h("div", {class:"ground"},
+        h("svg", {viewBox:"0 0 1200 130", preserveAspectRatio:"none"},
+          h("path", {d:"M0 70 Q150 10 300 60 T600 60 T900 55 T1200 60 V110 H0Z", fill:"#4DCB85"}),
+          h("path", {d:"M0 110 H1200 V130 H0Z", fill:"#5A3A2B"}),
+          h("path", {d:"M0 110 H1200", stroke:"#14141A", "stroke-width":"4"})
         )
       )
     ),
     /* ── NO EXPERIENCE BANNER ── */
-    h("section",{class:"wrap",style:"text-align:center;padding:clamp(2.5rem,7vw,5rem) 0"},
-      h("h2",{style:"margin-bottom:.6rem"},"NO EXPERIENCE?"),
-      h("h2",{style:"color:var(--pink);margin-bottom:.6rem"},"NO PROBLEM."),
-      h("p",{class:"big",style:"margin-bottom:1.4rem"},"EVERY PLAYER STARTS AT LEVEL 01."),
-      h("p",{class:"mono",style:"font-size:.9rem"},"START.HERE · PRESS START TO BEGIN →"),
-      h("div",{style:"margin-top:1.4rem"},
-        h("button",{class:"btn",onclick:function(){go("auth");}},"Press Start ▶")
+    h("section", {class:"wrap", style:"text-align:center;padding:clamp(2.5rem,7vw,5rem) 0"},
+      h("h2", {style:"margin-bottom:.6rem"}, "NO EXPERIENCE?"),
+      h("h2", {style:"color:var(--pink);margin-bottom:.6rem"}, "NO PROBLEM."),
+      h("p", {class:"big", style:"margin-bottom:1.4rem"}, "EVERY PLAYER STARTS AT LEVEL 01."),
+      h("p", {class:"mono", style:"font-size:.9rem"}, "START.HERE · PRESS START TO BEGIN →"),
+      h("div", {style:"margin-top:1.4rem"},
+        h("button", {class:"btn", onclick:function(){ go(S.user ? "workshops" : "auth"); }}, "Press Start ▶")
       )
     ),
     /* ── A DIFFERENT KIND OF CLASSROOM ── */
-    h("section",{class:"wrap",id:"about",style:"padding:clamp(2rem,6vw,4rem) 0"},
-      h("h2",{style:"text-align:center;margin-bottom:.6rem"},"A DIFFERENT KIND OF CLASSROOM"),
-      h("p",{class:"big",style:"text-align:center;margin-bottom:2rem"},
-        "College teaches you concepts.",h("br"),
-        "We'll help you ",h("mark",{class:"m2"},"put them to work"),"."
+    h("section", {class:"wrap", id:"about", style:"padding:clamp(2rem,6vw,4rem) 0"},
+      h("h2", {style:"text-align:center;margin-bottom:.6rem"}, "A DIFFERENT KIND OF CLASSROOM"),
+      h("p", {class:"big", style:"text-align:center;margin-bottom:2rem"},
+        "College teaches you concepts.", h("br"),
+        "We'll help you ", h("mark", {class:"m2"}, "put them to work"), "."
       ),
-      h("div",{style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.2rem;max-width:700px;margin:0 auto"},
-        h("div",{class:"panel",style:"text-align:center;padding:1.4rem"},
-          h("p",{style:"font-size:2rem;margin-bottom:.4rem"},"🛠"),
-          h("h3",null,"Work with real tools")
+      h("div", {style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.2rem;max-width:700px;margin:0 auto"},
+        h("div", {class:"panel", style:"text-align:center;padding:1.4rem"},
+          h("p", {style:"font-size:2rem;margin-bottom:.4rem"}, "🛠"),
+          h("h3", null, "Work with real tools")
         ),
-        h("div",{class:"panel",style:"text-align:center;padding:1.4rem"},
-          h("p",{style:"font-size:2rem;margin-bottom:.4rem"},"🚀"),
-          h("h3",null,"Build actual projects")
+        h("div", {class:"panel", style:"text-align:center;padding:1.4rem"},
+          h("p", {style:"font-size:2rem;margin-bottom:.4rem"}, "🚀"),
+          h("h3", null, "Build actual projects")
         ),
-        h("div",{class:"panel",style:"text-align:center;padding:1.4rem"},
-          h("p",{style:"font-size:2rem;margin-bottom:.4rem"},"🔗"),
-          h("h3",null,"Connect APIs")
+        h("div", {class:"panel", style:"text-align:center;padding:1.4rem"},
+          h("p", {style:"font-size:2rem;margin-bottom:.4rem"}, "🔗"),
+          h("h3", null, "Connect APIs")
         ),
-        h("div",{class:"panel",style:"text-align:center;padding:1.4rem"},
-          h("p",{style:"font-size:2rem;margin-bottom:.4rem"},"🌐"),
-          h("h3",null,"Deploy your ideas")
+        h("div", {class:"panel", style:"text-align:center;padding:1.4rem"},
+          h("p", {style:"font-size:2rem;margin-bottom:.4rem"}, "🌐"),
+          h("h3", null, "Deploy your ideas")
         )
       )
     )
@@ -377,309 +318,533 @@ function welcome(){
 }
 
 /* ══════════════════════════════
-   AUTH
+   AUTH VIEW
 ══════════════════════════════ */
 function authView(mode){
-  mode=mode||"in";
-  function tab(m,t){ return h("button",{type:"button",class:mode===m?"on":"",onclick:function(){authView(m);}},t); }
-  var box=h("div",{class:"vwrap"},
-    h("button",{class:"back",onclick:function(){go("");}},"← Back"),h("br"),
-    h("span",{class:"note"},"player login"),
-    h("h2",{style:"margin:1rem 0 1.4rem"},mode==="up"?"Create your player":mode==="code"?"Forgot password":"Welcome back"),
-    h("div",{class:"tabs"},tab("in","Sign in"),tab("up","Create account"),tab("code","Forgot password"))
+  mode = mode || "in";
+  function tab(m, t){
+    return h("button", {type:"button", class:mode === m ? "on" : "", onclick:function(){ authView(m); }}, t);
+  }
+  var box = h("div", {class:"vwrap"},
+    h("button", {class:"back", onclick:function(){ go(""); }}, "← Back"), h("br"),
+    h("span", {class:"note"}, "player login"),
+    h("h2", {style:"margin:1rem 0 1.4rem"}, mode === "up" ? "Create your player" : mode === "code" ? "Forgot password" : "Welcome back"),
+    h("div", {class:"tabs"}, tab("in", "Sign in"), tab("up", "Create account"), tab("code", "Forgot password"))
   );
-  var msg=msgBox(),f;
-  if(mode==="in"){
-    f=h("form",{class:"panel"},
-      fld("in-e","Email",{type:"email",required:true,autocomplete:"email",placeholder:"you@example.com"}),
-      fld("in-p","Password",{type:"password",required:true,autocomplete:"current-password"}),
-      h("button",{class:"btn",type:"submit"},"Sign in ▶"),msg);
-    f.addEventListener("submit",function(ev){
-      ev.preventDefault(); setMsg(msg,"Signing in...");
-      setTimeout(function(){ S.loggedIn=true; hud(); go("workshops"); say("Welcome back!"); },600);
-    });
-  } else if(mode==="up"){
-    var yr=h("select",{id:"up-y",required:true},
-      h("option",{value:""},"Choose one"),
-      ["1st year","2nd year","3rd year","4th year","Other"].map(function(y){return h("option",{value:y},y);})
+
+  var msg = msgBox(), f;
+
+  if (mode === "in") {
+    f = h("form", {class:"panel"},
+      fld("in-e", "Email", {type:"email", required:true, autocomplete:"email", placeholder:"you@example.com"}),
+      fld("in-p", "Password", {type:"password", required:true, autocomplete:"current-password"}),
+      h("button", {class:"btn", type:"submit"}, "Sign in ▶"), msg
     );
-    f=h("form",{class:"panel"},
-      fld("up-n","Your name",{required:true,autocomplete:"name"}),
-      fld("up-e","Email",{type:"email",required:true,autocomplete:"email"}),
-      fld("up-w","WhatsApp number",{type:"tel"},"Optional. For session reminders."),
-      h("div",{class:"fld"},h("label",{for:"up-y"},"Year of study"),yr),
-      h("div",{class:"fld"},h("label",{for:"up-q"},"What confuses you most right now?"),h("textarea",{id:"up-q"})),
-      fld("up-p","Password",{type:"password",required:true,minlength:"8"},"At least 8 characters."),
-      h("button",{class:"btn",type:"submit"},"Start game ▶"),msg);
-    f.addEventListener("submit",function(ev){
-      ev.preventDefault(); setMsg(msg,"Creating account...");
+    f.addEventListener("submit", async function(ev){
+      ev.preventDefault();
+      setMsg(msg, "Signing in...");
+      var email = $("in-e").value.trim();
+      var password = $("in-p").value;
+      if (!sb) return setMsg(msg, "Database connection not ready. Check config.js.", true);
+
+      var res = await sb.auth.signInWithPassword({ email: email, password: password });
+      if (res.error) {
+        return setMsg(msg, res.error.message, true);
+      }
+      await refreshAuth();
+      hud();
+      go("workshops");
+      say("Welcome back!");
+    });
+
+  } else if (mode === "up") {
+    var yr = h("select", {id:"up-y", required:true},
+      h("option", {value:""}, "Choose one"),
+      ["1st year", "2nd year", "3rd year", "4th year", "Other"].map(function(y){ return h("option", {value:y}, y); })
+    );
+    f = h("form", {class:"panel"},
+      fld("up-n", "Your name", {required:true, autocomplete:"name"}),
+      fld("up-e", "Email", {type:"email", required:true, autocomplete:"email"}),
+      fld("up-w", "WhatsApp number", {type:"tel"}, "Optional. For session reminders."),
+      h("div", {class:"fld"}, h("label", {for:"up-y"}, "Year of study"), yr),
+      h("div", {class:"fld"}, h("label", {for:"up-q"}, "What confuses you most right now?"), h("textarea", {id:"up-q"})),
+      fld("up-p", "Password", {type:"password", required:true, minlength:"8"}, "At least 8 characters."),
+      h("button", {class:"btn", type:"submit"}, "Start game ▶"), msg
+    );
+    f.addEventListener("submit", async function(ev){
+      ev.preventDefault();
+      setMsg(msg, "Creating your account...");
       var sName = $("up-n").value.trim() || "New Player";
       var sEmail = $("up-e").value.trim();
       var sPhone = $("up-w").value.trim();
       var sYear = $("up-y").value;
-      setTimeout(function(){
-        DEMO.user = { id: uid(), email: sEmail };
-        DEMO.profile = { id: DEMO.user.id, full_name: sName, phone: sPhone, year: sYear, role: "user" };
-        DEMO.registeredStudents = DEMO.registeredStudents || [];
-        DEMO.registeredStudents.unshift({
-          id: DEMO.user.id,
-          email: sEmail,
-          full_name: sName,
-          phone: sPhone,
-          year: sYear,
-          role: "user",
-          enrolled: Object.keys(DEMO.enrollments || {}),
-          joined: new Date().toISOString()
-        });
-        saveStudentData();
-        S.loggedIn=true; hud(); go("workshops"); say("Account created! Welcome, " + sName + ".");
-      },800);
+      var sQuestion = $("up-q").value.trim();
+      var sPassword = $("up-p").value;
+
+      if (!sb) return setMsg(msg, "Database connection not ready. Check config.js.", true);
+
+      var res = await sb.auth.signUp({
+        email: sEmail,
+        password: sPassword,
+        options: {
+          data: {
+            full_name: sName,
+            phone: sPhone,
+            year: sYear,
+            why: sQuestion
+          }
+        }
+      });
+
+      if (res.error) {
+        return setMsg(msg, res.error.message, true);
+      }
+
+      // If user session is created immediately:
+      await refreshAuth();
+      if (!S.user) {
+        // Fallback: sign in with password to obtain active session
+        var signRes = await sb.auth.signInWithPassword({ email: sEmail, password: sPassword });
+        if (!signRes.error) await refreshAuth();
+      }
+
+      hud();
+      go("workshops");
+      say("Account created! Welcome, " + sName + ".");
     });
+
   } else {
-    var step=1,demoEmail="";
-    f=h("form",{class:"panel"});
-    var draw=function(){
-      f.replaceChildren();
-      if(step===1){
-        f.append(h("p",{style:"margin-bottom:1rem;color:var(--muted)"},"Enter your email to receive a one-time code."),
-          fld("fc-e","Email",{type:"email",required:true}),
-          h("button",{class:"btn",type:"submit"},"Send me a code ▶"),msg);
-      } else {
-        f.append(h("p",{style:"margin-bottom:1rem;color:var(--muted)"},"We sent a code to "+demoEmail+". (Demo code: 123456)"),
-          fld("fc-c","Code",{inputmode:"numeric",autocomplete:"one-time-code",maxlength:"10",required:true}),
-          h("div",{class:"row"},
-            h("button",{class:"btn",type:"submit"},"Verify ▶"),
-            h("button",{class:"link",type:"button",onclick:function(){step=1;draw();}},"Use different email")
-          ),msg);
-      }
-    };
-    f.addEventListener("submit",function(ev){
-      ev.preventDefault();
-      if(step===1){
-        demoEmail=$("fc-e").value.trim(); setMsg(msg,"Sending...");
-        setTimeout(function(){step=2;draw();setMsg(msg,"Code sent! (demo code: 123456)");},600);
-      } else {
-        if($("fc-c").value.trim()!=="123456") return setMsg(msg,"Wrong code. Hint: 123456",true);
-        setMsg(msg,"Checking...");
-        setTimeout(function(){ S.loggedIn=true; S.needPw=true; hud(); go("account"); say("Signed in!"); },600);
-      }
-    });
-    draw();
-  }
-  box.append(f);
-  if(mode!=="code"){
-    box.append(
-      h("div",{class:"sep"},"or"),
-      h("button",{class:"btn line",type:"button",onclick:function(){say("Google sign-in would redirect to Google OAuth (not active in demo).");}},
-        "Continue with Google")
+    // Forgot password / reset flow
+    f = h("form", {class:"panel"},
+      h("p", {style:"margin-bottom:1rem;color:var(--muted)"}, "Enter your email to receive a password reset link."),
+      fld("fc-e", "Email", {type:"email", required:true, autocomplete:"email"}),
+      h("button", {class:"btn", type:"submit"}, "Send reset link ▶"), msg
     );
+    f.addEventListener("submit", async function(ev){
+      ev.preventDefault();
+      var email = $("fc-e").value.trim();
+      setMsg(msg, "Sending reset link...");
+      if (!sb) return setMsg(msg, "Database connection not ready.", true);
+      var res = await sb.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + "#account"
+      });
+      if (res.error) {
+        return setMsg(msg, res.error.message, true);
+      }
+      setMsg(msg, "Reset link sent! Please check your email inbox.", false);
+    });
   }
+
+  box.append(f);
   app.replaceChildren(box);
 }
 
 /* ══════════════════════════════
-   WORKSHOP MAP
+   WORKSHOPS VIEW (Level Map)
 ══════════════════════════════ */
-function winCard(title,locked,bodyNodes){
-  return h("article",{class:"win"+(locked?" lock":"")},
-    h("div",{class:"wbar"},h("span",{class:"dots"},h("i"),h("i"),h("i")),h("span",{class:"wt"},title),h("span",{"aria-hidden":"true"},"×")),
-    h("div",{class:"wbody"},bodyNodes)
+function winCard(title, locked, bodyNodes){
+  return h("article", {class:"win" + (locked ? " lock" : "")},
+    h("div", {class:"wbar"},
+      h("span", {class:"dots"}, h("i"), h("i"), h("i")),
+      h("span", {class:"wt"}, title),
+      h("span", {"aria-hidden":"true"}, "×")
+    ),
+    h("div", {class:"wbody"}, bodyNodes)
   );
-}
-function isComplete(wid){
-  var sess=DEMO.sessions[wid]||[];
-  return sess.length>0&&sess.every(function(s){return DEMO.progress[s.id];});
-}
-function workshopsView(){
-  var list=DEMO.workshops;
-  var grid=h("div",{class:"wgrid"});
-  list.forEach(function(w,i){
-    var unlocked=i===0||isComplete(list[i-1].id);
-    if(!unlocked){
-      grid.append(winCard("locked.exe",true,[
-        h("p",{style:"font-size:2rem;margin-bottom:.4rem"},"🔒"),
-        h("h3",null,"Level "+pad2(w.level_no)),
-        h("p",null,"Unlocks soon")
-      ])); return;
-    }
-    var sess=DEMO.sessions[w.id]||[],total=sess.length;
-    var done=sess.filter(function(s){return DEMO.progress[s.id];}).length;
-    var pct=total?Math.round(done/total*100):0;
-    var enrolled=DEMO.enrollments[w.id];
-    grid.append(winCard("level_"+pad2(w.level_no)+".exe",false,[
-      h("span",{class:"lvl"},pad2(w.level_no)),
-      h("h3",null,w.title),
-      w.description?h("p",null,w.description):null,
-      h("div",{class:"bar2"},h("i",{style:"width:"+pct+"%"})),
-      h("span",{class:"mono"},enrolled?done+" / "+total+" sessions":"Not started"),
-      h("button",{class:"btn",style:"margin-top:.6rem",onclick:function(){
-        DEMO.enrollments[w.id]=true;
-        if(DEMO.registeredStudents && DEMO.registeredStudents.length){
-          var cur = DEMO.registeredStudents.find(function(s){ return s.id === (DEMO.user && DEMO.user.id); });
-          if(cur && cur.enrolled.indexOf(w.id) < 0) cur.enrolled.push(w.id);
-        }
-        saveStudentData();
-        go("workshop-"+w.id);
-      }},
-        (enrolled?"Continue":"Enter")+" ▶")
-    ]));
-  });
-  app.replaceChildren(h("div",{class:"vwrap"},
-    h("span",{class:"note"},"welcome, "+(DEMO.profile.full_name||"player")),
-    h("h2",{style:"margin:1rem 0 .5rem"},"Choose your level"),
-    h("p",{class:"mono"},"Finish a level to unlock the next one."),
-    list.length?grid:h("p",{style:"margin-top:2rem;color:var(--muted)"},"No workshops yet.")
-  ));
 }
 
-/* ══════════════════════════════
-   ONE WORKSHOP
-══════════════════════════════ */
-function compPanel(c,mine){
-  var closed=c.status==="closed"||(c.closes_at&&new Date(c.closes_at)<new Date());
-  var open=c.status==="open"&&!closed;
-  var p=h("section",{class:"panel"},
-    h("h3",null,c.title),
-    c.description?h("p",{style:"color:var(--muted);margin:.4rem 0 1rem"},c.description):null
-  );
-  if(c.status==="locked"){p.append(h("p",{class:"mono"},"🔒 Locked. Opens when the organiser starts it."));return p;}
-  if(!open){p.append(h("p",{class:"mono"},mine?"Closed. Your submission was received.":"This competition is closed."));return p;}
-  var ans=(mine&&mine.answers)||{},form=h("form"),msg=msgBox();
-  (c.fields||[]).forEach(function(f){
-    var id="cf-"+c.id+"-"+f.key,short=["url","email","number","short"].indexOf(f.type)>=0;
-    var el=short?h("input",{id:id,type:f.type==="short"?"text":f.type,required:!!f.required}):h("textarea",{id:id,required:!!f.required});
-    el.value=ans[f.key]||"";el.dataset.key=f.key;
-    form.append(h("div",{class:"fld"},h("label",{for:id},f.label),el));
-  });
-  form.append(h("button",{class:"btn",type:"submit"},(mine?"Update":"Submit")+" ▶"),msg);
-  form.addEventListener("submit",function(ev){
-    ev.preventDefault(); var a={};
-    form.querySelectorAll("[data-key]").forEach(function(el){a[el.dataset.key]=el.value.trim();});
-    setMsg(msg,"Saving...");
-    setTimeout(function(){ DEMO.submissions[c.id]={answers:a}; saveStudentData(); setMsg(msg,"Submitted ✓ — editable until competition closes."); },500);
-  });
-  p.append(form);return p;
-}
-function workshopView(wid){
-  var w=DEMO.workshops.find(function(x){return x.id===wid;});
-  if(!w){app.replaceChildren(h("div",{class:"vwrap"},h("h2",null,"Workshop not found")));return;}
-  var sessions=DEMO.sessions[wid]||[],comps=DEMO.competitions[wid]||[];
-  var doneSet=Object.assign({},DEMO.progress);
-  var total=sessions.length;
-  var bar=h("i",{style:"width:0"});
-  var txt=h("span",{class:"mono"});
-  function paint(){
-    var n=sessions.filter(function(s){return doneSet[s.id];}).length;
-    bar.style.width=(total?Math.round(n/total*100):0)+"%";
-    txt.textContent=(total&&n===total)?"LEVEL COMPLETE 🎉":n+" / "+total+" sessions";
+async function workshopsView(){
+  if (!S.user) return go("auth");
+  if (!sb) {
+    app.replaceChildren(h("div", {class:"vwrap"}, h("h2", null, "Configuration error"), h("p", null, "Missing Supabase configuration in config.js.")));
+    return;
   }
-  var list=h("ol",{class:"rowlist"});
-  sessions.forEach(function(s,i){
-    var cb=h("input",{type:"checkbox",id:"s"+i}); if(doneSet[s.id])cb.checked=true;
-    cb.addEventListener("change",function(){
-      if(cb.checked)doneSet[s.id]=DEMO.progress[s.id]=true;
-      else{delete doneSet[s.id];delete DEMO.progress[s.id];}
-      saveStudentData();paint();
-    });
-    var rec=s.recording_url?h("a",{class:"link",href:s.recording_url,target:"_blank",rel:"noopener"},"Recording"):h("span",{class:"mono"},"Soon");
-    list.append(h("li",null,cb,h("label",{for:"s"+i},h("b",null,(i+1)+". "+s.title),h("br"),h("span",{class:"mono"},fmt(s.starts_at)+(s.description?" · "+s.description:""))),rec));
-  });
-  var live=DEMO.live_links[wid];
-  var stack=h("div",{class:"stack"},
-    h("section",{class:"panel"},h("h3",null,"Dates"),h("p",null,w.dates_text||"Dates to be announced.")),
-    h("section",{class:"panel"},h("h3",null,"Live link"),
-      h("p",null,live?"Session is live! Join with the button below.":"Live link will appear here before the session."),
-      live?h("p",{style:"margin-top:1rem"},h("a",{class:"btn",href:live,target:"_blank",rel:"noopener"},"Join live ▶")):null
-    ),
-    h("section",{class:"panel"},h("h3",null,"Sessions"),
-      h("p",{class:"mono"},"Tick a session when you finish it."),
-      sessions.length?list:h("p",{style:"color:var(--muted);margin-top:.6rem"},"Sessions coming soon.")
-    ),
-    comps.map(function(c){return compPanel(c,DEMO.submissions[c.id]);})
-  );
-  app.replaceChildren(h("div",{class:"vwrap"},
-    h("button",{class:"back",onclick:function(){go("workshops");}},"← All levels"),h("br"),
-    h("span",{class:"note"},"level "+pad2(w.level_no)),
-    h("h2",{style:"margin:1rem 0 0"},w.title),
-    w.description?h("p",{style:"margin-top:.6rem;color:var(--muted)"},w.description):null,
-    h("div",{class:"bar2"},bar),txt,stack
+
+  app.replaceChildren(h("div", {class:"vwrap"},
+    h("span", {class:"note"}, "loading levels..."),
+    h("h2", {style:"margin:1rem 0"}, "Connecting to database...")
   ));
-  paint();
+
+  try {
+    var uid = S.user.id;
+    var res = await Promise.all([
+      sb.from("workshops").select("*").eq("published", true).order("level_no"),
+      sb.from("enrollments").select("workshop_id").eq("user_id", uid),
+      sb.from("sessions").select("id,workshop_id"),
+      sb.from("session_progress").select("session_id").eq("user_id", uid)
+    ]);
+
+    for (var i = 0; i < res.length; i++) {
+      if (res[i].error) throw res[i].error;
+    }
+
+    var workshops = res[0].data || [];
+    var enrolledMap = {};
+    (res[1].data || []).forEach(function(e){ enrolledMap[e.workshop_id] = true; });
+
+    var doneSet = {};
+    (res[3].data || []).forEach(function(p){ doneSet[p.session_id] = true; });
+
+    var totalSessions = {}, doneSessions = {};
+    (res[2].data || []).forEach(function(s){
+      totalSessions[s.workshop_id] = (totalSessions[s.workshop_id] || 0) + 1;
+      if (doneSet[s.id]) {
+        doneSessions[s.workshop_id] = (doneSessions[s.workshop_id] || 0) + 1;
+      }
+    });
+
+    var isWorkshopDone = function(w){
+      var t = totalSessions[w.id] || 0;
+      return t > 0 && (doneSessions[w.id] || 0) === t;
+    };
+
+    var grid = h("div", {class:"wgrid"});
+
+    workshops.forEach(function(w, idx){
+      var unlocked = (idx === 0) || isWorkshopDone(workshops[idx - 1]);
+      if (!unlocked) {
+        grid.append(winCard("locked.exe", true, [
+          h("p", {style:"font-size:2rem;margin-bottom:.4rem"}, "🔒"),
+          h("h3", null, "Level " + pad2(w.level_no)),
+          h("p", null, "Unlocks soon")
+        ]));
+        return;
+      }
+
+      var tot = totalSessions[w.id] || 0;
+      var comp = doneSessions[w.id] || 0;
+      var pct = tot ? Math.round(comp / tot * 100) : 0;
+      var isEnrolled = !!enrolledMap[w.id];
+
+      grid.append(winCard("level_" + pad2(w.level_no) + ".exe", false, [
+        h("span", {class:"lvl"}, pad2(w.level_no)),
+        h("h3", null, w.title),
+        w.description ? h("p", null, w.description) : null,
+        h("div", {class:"bar2"}, h("i", {style:"width:" + pct + "%"})),
+        h("span", {class:"mono"}, isEnrolled ? comp + " / " + tot + " sessions" : "Not started"),
+        h("button", {class:"btn", style:"margin-top:.6rem", onclick:async function(){
+          if (!isEnrolled) {
+            try {
+              await sb.from("enrollments").upsert({
+                user_id: uid,
+                workshop_id: w.id
+              }, { onConflict: "user_id,workshop_id", ignoreDuplicates: true });
+            } catch(e){
+              console.warn("Enrollment notice:", e);
+            }
+          }
+          go("workshop-" + w.id);
+        }}, (isEnrolled ? "Continue" : "Enter") + " ▶")
+      ]));
+    });
+
+    app.replaceChildren(h("div", {class:"vwrap"},
+      h("span", {class:"note"}, "welcome, " + ((S.profile && S.profile.full_name) || "player")),
+      h("h2", {style:"margin:1rem 0 .5rem"}, "Choose your level"),
+      h("p", {class:"mono"}, "Finish a level to unlock the next one."),
+      workshops.length ? grid : h("p", {style:"margin-top:2rem;color:var(--muted)"}, "No workshops are published yet. Check back soon.")
+    ));
+
+  } catch(err) {
+    app.replaceChildren(h("div", {class:"vwrap"},
+      h("h2", null, "Could not load workshops"),
+      h("p", {style:"margin-top:1rem;color:var(--pink)"}, err.message || String(err)),
+      h("button", {class:"btn sm", style:"margin-top:1rem", onclick:workshopsView}, "Retry ▶")
+    ));
+  }
 }
 
 /* ══════════════════════════════
-   ACCOUNT
+   ONE WORKSHOP VIEW
+══════════════════════════════ */
+function compPanel(c, mine){
+  var closed = c.status === "closed" || (c.closes_at && new Date(c.closes_at) < new Date());
+  var open = c.status === "open" && !closed;
+  var p = h("section", {class:"panel"},
+    h("h3", null, c.title),
+    c.description ? h("p", {style:"color:var(--muted);margin:.4rem 0 1rem"}, c.description) : null
+  );
+
+  if (c.status === "locked") {
+    p.append(h("p", {class:"mono"}, "🔒 Locked. Opens when the organiser starts it."));
+    return p;
+  }
+  if (!open) {
+    p.append(h("p", {class:"mono"}, mine ? "Closed. Your submission was received." : "This competition is closed."));
+    return p;
+  }
+
+  var ans = (mine && mine.answers) || {}, form = h("form"), msg = msgBox();
+  (c.fields || []).forEach(function(f){
+    var id = "cf-" + c.id + "-" + f.key;
+    var short = ["url", "email", "number", "short"].indexOf(f.type) >= 0;
+    var el = short ? h("input", {id:id, type:f.type === "short" ? "text" : f.type, required:!!f.required}) : h("textarea", {id:id, required:!!f.required});
+    el.value = ans[f.key] || "";
+    el.dataset.key = f.key;
+    form.append(h("div", {class:"fld"}, h("label", {for:id}, f.label), el));
+  });
+
+  form.append(h("button", {class:"btn", type:"submit"}, (mine ? "Update" : "Submit") + " ▶"), msg);
+  form.addEventListener("submit", async function(ev){
+    ev.preventDefault();
+    var a = {};
+    form.querySelectorAll("[data-key]").forEach(function(el){ a[el.dataset.key] = el.value.trim(); });
+    setMsg(msg, "Saving submission...");
+    var res = await sb.from("submissions").upsert({
+      competition_id: c.id,
+      user_id: S.user.id,
+      answers: a,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "competition_id,user_id" });
+
+    if (res.error) {
+      setMsg(msg, res.error.message, true);
+    } else {
+      setMsg(msg, "Submitted ✓ — editable until competition closes.", false);
+    }
+  });
+
+  p.append(form);
+  return p;
+}
+
+async function workshopView(wid){
+  if (!S.user) return go("auth");
+
+  app.replaceChildren(h("div", {class:"vwrap"},
+    h("span", {class:"note"}, "loading level..."),
+    h("h2", {style:"margin:1rem 0"}, "Loading syllabus...")
+  ));
+
+  try {
+    var uid = S.user.id;
+    var res = await Promise.all([
+      sb.from("workshops").select("*").eq("id", wid).maybeSingle(),
+      sb.from("workshop_links").select("live_url").eq("workshop_id", wid).maybeSingle(),
+      sb.from("sessions").select("*").eq("workshop_id", wid).order("position"),
+      sb.from("session_progress").select("session_id").eq("user_id", uid),
+      sb.from("competitions").select("*").eq("workshop_id", wid).order("created_at")
+    ]);
+
+    for (var i = 0; i < res.length; i++) {
+      if (res[i].error) throw res[i].error;
+    }
+
+    var w = res[0].data;
+    if (!w) {
+      app.replaceChildren(h("div", {class:"vwrap"}, h("h2", null, "Workshop not found"), h("button", {class:"btn sm", onclick:function(){ go("workshops"); }}, "← Back to levels")));
+      return;
+    }
+
+    var live = res[1].data ? res[1].data.live_url : "";
+    var sessions = res[2].data || [];
+    var doneMap = {};
+    (res[3].data || []).forEach(function(p){ doneMap[p.session_id] = true; });
+
+    var comps = res[4].data || [];
+    var submissionsMap = {};
+    if (comps.length > 0) {
+      var subRes = await sb.from("submissions").select("*").eq("user_id", uid).in("competition_id", comps.map(function(c){ return c.id; }));
+      (subRes.data || []).forEach(function(s){ submissionsMap[s.competition_id] = s; });
+    }
+
+    var bar = h("i", {style:"width:0"});
+    var txt = h("span", {class:"mono"});
+    var total = sessions.length;
+
+    function paintProgress(){
+      var compCount = sessions.filter(function(s){ return doneMap[s.id]; }).length;
+      bar.style.width = (total ? Math.round(compCount / total * 100) : 0) + "%";
+      txt.textContent = (total && compCount === total) ? "LEVEL COMPLETE 🎉" : compCount + " / " + total + " sessions";
+    }
+
+    var list = h("ol", {class:"rowlist"});
+    sessions.forEach(function(s, idx){
+      var cb = h("input", {type:"checkbox", id:"s" + idx});
+      if (doneMap[s.id]) cb.checked = true;
+
+      cb.addEventListener("change", async function(){
+        if (cb.checked) {
+          doneMap[s.id] = true;
+          paintProgress();
+          var addRes = await sb.from("session_progress").insert({ user_id: uid, session_id: s.id });
+          if (addRes.error && addRes.error.code !== "23505") { // Ignore duplicate key
+            console.error(addRes.error);
+            delete doneMap[s.id];
+            cb.checked = false;
+            paintProgress();
+            say("Could not save progress. Please try again.");
+          }
+        } else {
+          delete doneMap[s.id];
+          paintProgress();
+          var delRes = await sb.from("session_progress").delete().eq("user_id", uid).eq("session_id", s.id);
+          if (delRes.error) {
+            console.error(delRes.error);
+            doneMap[s.id] = true;
+            cb.checked = true;
+            paintProgress();
+            say("Could not update progress.");
+          }
+        }
+      });
+
+      var rec = s.recording_url
+        ? h("a", {class:"link", href:s.recording_url, target:"_blank", rel:"noopener"}, "Recording ↗")
+        : h("span", {class:"mono"}, "Soon");
+
+      list.append(h("li", null,
+        cb,
+        h("label", {for:"s" + idx},
+          h("b", null, (idx + 1) + ". " + s.title),
+          h("br"),
+          h("span", {class:"mono"}, fmt(s.starts_at) + (s.description ? " · " + s.description : ""))
+        ),
+        rec
+      ));
+    });
+
+    var stack = h("div", {class:"stack"},
+      h("section", {class:"panel"},
+        h("h3", null, "Dates"),
+        h("p", null, w.dates_text || "Dates to be announced.")
+      ),
+      h("section", {class:"panel"},
+        h("h3", null, "Live session link"),
+        h("p", null, live ? "Session is live! Join with the button below." : "Live link will appear here before each session."),
+        live ? h("p", {style:"margin-top:1rem"}, h("a", {class:"btn", href:live, target:"_blank", rel:"noopener"}, "Join live ▶")) : null
+      ),
+      h("section", {class:"panel"},
+        h("h3", null, "Sessions"),
+        h("p", {class:"mono"}, "Tick a session when you finish it."),
+        sessions.length ? list : h("p", {style:"color:var(--muted);margin-top:.6rem"}, "Sessions coming soon.")
+      ),
+      comps.map(function(c){ return compPanel(c, submissionsMap[c.id]); })
+    );
+
+    app.replaceChildren(h("div", {class:"vwrap"},
+      h("button", {class:"back", onclick:function(){ go("workshops"); }}, "← All levels"), h("br"),
+      h("span", {class:"note"}, "level " + pad2(w.level_no)),
+      h("h2", {style:"margin:1rem 0 0"}, w.title),
+      w.description ? h("p", {style:"margin-top:.6rem;color:var(--muted)"}, w.description) : null,
+      h("div", {class:"bar2"}, bar), txt, stack
+    ));
+
+    paintProgress();
+
+  } catch(err) {
+    app.replaceChildren(h("div", {class:"vwrap"},
+      h("h2", null, "Could not load level"),
+      h("p", {style:"margin-top:1rem;color:var(--pink)"}, err.message || String(err)),
+      h("button", {class:"btn sm", style:"margin-top:1rem", onclick:function(){ workshopView(wid); }}, "Retry ▶")
+    ));
+  }
+}
+
+/* ══════════════════════════════
+   ACCOUNT VIEW
 ══════════════════════════════ */
 function accountView(){
-  var p=DEMO.profile,msg1=msgBox(),msg2=msgBox();
-  var f1=h("form",{class:"panel"},
-    h("h3",{style:"margin-bottom:1rem"},"Your details"),
-    fld("ac-n","Name",{required:true,value:p.full_name||""}),
-    fld("ac-w","WhatsApp number",{type:"tel",value:p.phone||""}),
-    h("p",{class:"mono",style:"margin-bottom:1rem"},"Email: "+DEMO.user.email),
-    h("button",{class:"btn",type:"submit"},"Save"),msg1);
-  f1.addEventListener("submit",function(ev){
-    ev.preventDefault(); DEMO.profile.full_name=$("ac-n").value.trim(); DEMO.profile.phone=$("ac-w").value.trim();
-    hud(); setMsg(msg1,"Saved ✓",false);
-  });
-  var f2=h("form",{class:"panel"},
-    h("h3",{style:"margin-bottom:1rem"},"Change password"),
-    fld("ac-p","New password",{type:"password",required:true,minlength:"8"}),
-    fld("ac-p2","Repeat new password",{type:"password",required:true,minlength:"8"}),
-    h("button",{class:"btn",type:"submit"},"Update password"),msg2);
-  f2.addEventListener("submit",function(ev){
+  if (!S.user) return go("auth");
+
+  var p = S.profile || {};
+  var msg1 = msgBox(), msg2 = msgBox();
+
+  var f1 = h("form", {class:"panel"},
+    h("h3", {style:"margin-bottom:1rem"}, "Your details"),
+    fld("ac-n", "Name", {required:true, value:p.full_name || ""}),
+    fld("ac-w", "WhatsApp number", {type:"tel", value:p.phone || ""}),
+    h("p", {class:"mono", style:"margin-bottom:1rem"}, "Email: " + S.user.email),
+    h("button", {class:"btn", type:"submit"}, "Save details"), msg1
+  );
+
+  f1.addEventListener("submit", async function(ev){
     ev.preventDefault();
-    if($("ac-p").value!==$("ac-p2").value)return setMsg(msg2,"Passwords do not match.",true);
-    S.needPw=false; $("ac-p").value=""; $("ac-p2").value=""; setMsg(msg2,"Password updated ✓",false);
+    var newName = $("ac-n").value.trim();
+    var newPhone = $("ac-w").value.trim();
+    setMsg(msg1, "Saving...");
+    var res = await sb.from("profiles").update({ full_name: newName, phone: newPhone }).eq("id", S.user.id);
+    if (res.error) {
+      setMsg(msg1, res.error.message, true);
+    } else {
+      if (!S.profile) S.profile = {};
+      S.profile.full_name = newName;
+      S.profile.phone = newPhone;
+      hud();
+      setMsg(msg1, "Saved ✓", false);
+    }
   });
-  app.replaceChildren(h("div",{class:"vwrap"},
-    h("button",{class:"back",onclick:function(){go("workshops");}},"← Workshops"),h("br"),
-    h("span",{class:"note"},"your player"),
-    h("h2",{style:"margin:1rem 0 1.4rem"},"Account"),
-    S.needPw?h("div",{class:"notice"},"You're signed in with a code. Set a new password below."):null,
-    h("div",{class:"stack"},f1,f2,h("div",null,h("button",{class:"btn line",type:"button",onclick:signOut},"Sign out")))
+
+  var f2 = h("form", {class:"panel"},
+    h("h3", {style:"margin-bottom:1rem"}, "Change password"),
+    fld("ac-p", "New password", {type:"password", required:true, minlength:"8"}),
+    fld("ac-p2", "Repeat new password", {type:"password", required:true, minlength:"8"}),
+    h("button", {class:"btn", type:"submit"}, "Update password"), msg2
+  );
+
+  f2.addEventListener("submit", async function(ev){
+    ev.preventDefault();
+    var p1 = $("ac-p").value, p2 = $("ac-p2").value;
+    if (p1 !== p2) return setMsg(msg2, "Passwords do not match.", true);
+    setMsg(msg2, "Updating password...");
+    var res = await sb.auth.updateUser({ password: p1 });
+    if (res.error) {
+      setMsg(msg2, res.error.message, true);
+    } else {
+      S.needPw = false;
+      $("ac-p").value = "";
+      $("ac-p2").value = "";
+      setMsg(msg2, "Password updated ✓", false);
+    }
+  });
+
+  app.replaceChildren(h("div", {class:"vwrap"},
+    h("button", {class:"back", onclick:function(){ go("workshops"); }}, "← Workshops"), h("br"),
+    h("span", {class:"note"}, "your player"),
+    h("h2", {style:"margin:1rem 0 1.4rem"}, "Account"),
+    S.needPw ? h("div", {class:"notice"}, "You're signed in with a temporary link. Set your permanent password below.") : null,
+    h("div", {class:"stack"}, f1, f2,
+      h("div", null, h("button", {class:"btn line", type:"button", onclick:signOut}, "Sign out"))
+    )
   ));
 }
 
 /* ══════════════════════════════
-   ROUTER
+   ROUTER & INIT
 ══════════════════════════════ */
-var ROUTES={
-  "":        welcome,
-  "auth":    function(){authView("in");},
-  "workshops":function(){if(!S.loggedIn)return go("auth"); workshopsView();},
-  "account": function(){if(!S.loggedIn)return go("auth"); accountView();}
+var ROUTES = {
+  "": welcome,
+  "auth": function(){ authView("in"); },
+  "workshops": function(){ if(!S.user) return go("auth"); workshopsView(); },
+  "account": function(){ if(!S.user) return go("auth"); accountView(); }
 };
+
 function route(){
-  var hash=(location.hash||"").slice(1);
-  window.scrollTo(0,0);
-  if(hash.indexOf("workshop-")===0){
-    if(!S.loggedIn)return go("auth");
-    workshopView(hash.slice(9)); hud(); return;
+  var hash = (location.hash || "").slice(1);
+  window.scrollTo(0, 0);
+
+  if (hash.indexOf("workshop-") === 0) {
+    if (!S.user) return go("auth");
+    workshopView(hash.slice(9));
+    hud();
+    return;
   }
-  if(hash==="auth"&&S.loggedIn)return go("workshops");
+
+  if (hash === "auth" && S.user) return go("workshops");
+
   hud();
-  (ROUTES[hash]||welcome)();
+  (ROUTES[hash] || welcome)();
 }
-addEventListener("hashchange",route);
 
-/* ── AUTO-REFRESH when tab gets focus or when storage changes ── */
-document.addEventListener("visibilitychange",function(){
-  if(!document.hidden){
-    loadAdminData();
-    loadStudentData();
-    route();
-  }
-});
-window.addEventListener("storage",function(e){
-  if(e.key === DATA_KEY || e.key === STU_DATA_KEY){
-    loadAdminData();
-    loadStudentData();
-    route();
-  }
-});
+addEventListener("hashchange", route);
 
-route();
+// Initialize on page load
+(async function init(){
+  await refreshAuth();
+  hud();
+  route();
+})();
+
 })();
 </script>
 </body>

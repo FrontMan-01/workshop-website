@@ -125,28 +125,28 @@ header{background:var(--panel);border-bottom:2px solid var(--ink);position:stick
       <span class="lock-icon">🔐</span>
       <span class="note">admin only</span>
       <h2>Control Room</h2>
-      <p class="mono" style="margin-top:.5rem">start.here admin dashboard</p>
+      <p class="mono" style="margin-top:.5rem">start.here real database admin</p>
     </div>
     <div id="login-area">
       <form class="panel" id="admin-login-form">
         <div class="fld">
-          <label for="lg-u">Username</label>
-          <input id="lg-u" required autocomplete="username" placeholder="admin" value="admin">
+          <label for="lg-u">Admin Email</label>
+          <input id="lg-u" type="email" required autocomplete="username" placeholder="admin@example.com" value="patelpriya17151@gmail.com">
         </div>
         <div class="fld">
           <label for="lg-p">Password</label>
-          <input id="lg-p" type="password" required autocomplete="current-password" placeholder="••••••••••" value="StartHere@2026">
+          <input id="lg-p" type="password" required autocomplete="current-password" placeholder="••••••••••">
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-top:.6rem">
           <button class="btn" type="submit" style="min-width:140px">Sign in ▶</button>
-          <button class="link" type="button" id="btn-forgot-pw">Forgot password?</button>
+          <button class="link" type="button" id="btn-magic-link">Send Magic Link</button>
         </div>
         <p class="msg" id="login-msg"></p>
       </form>
       <div class="notice info" id="default-creds-notice" style="margin-top:1rem;font-size:.83rem">
-        🔑 <b>Default credentials</b><br>
-        Username: <b>admin</b> &nbsp;·&nbsp; Password: <b>StartHere@2026</b><br>
-        <span style="color:var(--muted)">Change them in Settings after signing in.</span>
+        ⚡ <b>Connected to Supabase Database</b><br>
+        Admin account: <b>patelpriya17151@gmail.com</b><br>
+        <span style="color:var(--muted)">Sign in with your admin password or request a magic link.</span>
       </div>
     </div>
   </div>
@@ -159,7 +159,7 @@ header{background:var(--panel);border-bottom:2px solid var(--ink);position:stick
       <button class="logo" onclick="showTab('overview')">⚙ start.here admin</button>
       <div class="hud-right">
         <span class="mono" id="admin-email-display"></span>
-        <button class="btn sm line" onclick="goSettings()">Settings</button>
+        <a class="btn sm line" href="/" target="_blank">Student Site ↗</a>
         <button class="btn sm danger" onclick="adminLogout()">Sign out</button>
       </div>
     </div>
@@ -173,357 +173,354 @@ header{background:var(--panel);border-bottom:2px solid var(--ink);position:stick
 <div id="modal-root"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <script>
 (function(){
 "use strict";
 
-/* ══════════════════════════════════════════════
-   CREDENTIALS  (stored in localStorage)
-   Default: username=admin  password=StartHere@2026
-   Recovery code: RECOVER-2026
-══════════════════════════════════════════════ */
-var CREDS_KEY = "sh_admin_creds";
-var SESSION_KEY = "sh_admin_session";
+var C = window.APP_CONFIG || {};
+var sb = (window.supabase && C.SUPABASE_URL && C.SUPABASE_KEY)
+  ? window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_KEY)
+  : null;
 
-function getCreds(){
-  try{ return JSON.parse(localStorage.getItem(CREDS_KEY))||null; } catch(e){ return null; }
-}
-function saveCreds(c){ localStorage.setItem(CREDS_KEY, JSON.stringify(c)); }
-function getSession(){ return localStorage.getItem(SESSION_KEY)==="1"; }
-function setSession(v){ if(v)localStorage.setItem(SESSION_KEY,"1"); else localStorage.removeItem(SESSION_KEY); }
+var adminUser = null;
+var adminProfile = null;
 
-// First-time defaults
-if(!getCreds()){
-  saveCreds({ username:"admin", password:"StartHere@2026", recoveryCode:"RECOVER-2026" });
-}
-
-/* ══════════════════════════════════════════════
-   DEMO DATA
-══════════════════════════════════════════════ */
-var DEMO = {
-  workshops:[
-    {id:"w1",level_no:1,title:"Intro to Web Dev",description:"HTML, CSS and how the internet works.",published:true,dates_text:"Every Saturday 10 AM – 12 PM (4 sessions)"},
-    {id:"w2",level_no:2,title:"JavaScript Fundamentals",description:"Variables, functions, loops, DOM.",published:true,dates_text:"Sundays 11 AM, starting 15 Nov"},
-    {id:"w3",level_no:3,title:"Building with React",description:"Components, state, props and hooks.",published:true,dates_text:"TBA after Level 2"},
-    {id:"w4",level_no:4,title:"Backend with Node.js",description:"APIs, routing, and a real database.",published:false,dates_text:"TBA"},
-    {id:"w5",level_no:5,title:"Databases & SQL",description:"Postgres, queries, schema design.",published:false,dates_text:"TBA"}
-  ],
-  sessions:{
-    "w1":[
-      {id:"s1a",title:"How browsers work",starts_at:"2026-11-08T10:00",description:"Request/response, HTML parsing",recording_url:"https://youtube.com"},
-      {id:"s1b",title:"Your first HTML page",starts_at:"2026-11-15T10:00",description:"Tags, structure, attributes",recording_url:"https://youtube.com"},
-      {id:"s1c",title:"CSS basics",starts_at:"2026-11-22T10:00",description:"Selectors, box model, flexbox",recording_url:""},
-      {id:"s1d",title:"Putting it together",starts_at:"2026-11-29T10:00",description:"Build a mini portfolio page",recording_url:""}
-    ],
-    "w2":[
-      {id:"s2a",title:"Variables & types",starts_at:"2026-11-15T11:00",description:"",recording_url:""},
-      {id:"s2b",title:"Functions & scope",starts_at:"2026-11-22T11:00",description:"",recording_url:""},
-      {id:"s2c",title:"Arrays & loops",starts_at:"2026-11-29T11:00",description:"",recording_url:""}
-    ],
-    "w3":[],"w4":[],"w5":[]
-  },
-  live_links:{"w1":"https://meet.google.com/demo","w2":"","w3":"","w4":"","w5":""},
-  competitions:{
-    "w1":[{id:"c1",title:"Mini Quiz",description:"Answer 3 questions about Level 1.",status:"open",closes_at:"2026-11-30T23:59",workshop_id:"w1",fields:[
-      {key:"q1",label:"What does HTML stand for?",type:"short",required:true},
-      {key:"q2",label:"Name one CSS property you learned.",type:"short",required:true},
-      {key:"q3",label:"What confused you most?",type:"long",required:false}
-    ]}],
-    "w2":[{id:"c2",title:"JS Hackathon",description:"Build a tiny app in 2 hours.",status:"locked",closes_at:"",workshop_id:"w2",fields:[]}],
-    "w3":[],"w4":[],"w5":[]
-  },
-  students:[],
-  events:[],
-  onlineNow:1
+var DB = {
+  workshops: [],
+  sessions: {},
+  live_links: {},
+  competitions: {},
+  students: [],
+  enrollments: [],
+  events: []
 };
-var _id=100; function uid(){ return "x"+(++_id); }
 
-/* ── SHARED STORE (localStorage → read by demo.html) ── */
-var DATA_KEY="sh_site_data";
-function saveData(){
-  try{
-    localStorage.setItem(DATA_KEY,JSON.stringify({
-      workshops:DEMO.workshops,
-      sessions:DEMO.sessions,
-      live_links:DEMO.live_links,
-      competitions:DEMO.competitions
-    }));
-  }catch(e){}
-}
-
-/* ── LOAD STUDENT DATA (written by index.html) ── */
-var STU_DATA_KEY="sh_student_data";
-function loadStudentData(){
-  try{
-    var saved=JSON.parse(localStorage.getItem(STU_DATA_KEY));
-    if(!saved) return;
-    // Add newly registered students if any
-    if(saved.registeredStudents && saved.registeredStudents.length){
-      saved.registeredStudents.forEach(function(newStu){
-        var exists = DEMO.students.some(function(s){ return s.email === newStu.email || s.id === newStu.id; });
-        if(!exists){
-          DEMO.students.unshift(newStu);
-          DEMO.events.push({
-            type: "login",
-            user: newStu.full_name,
-            email: newStu.email,
-            at: newStu.joined || new Date().toISOString()
-          });
-        } else {
-          var target = DEMO.students.find(function(s){ return s.email === newStu.email || s.id === newStu.id; });
-          if(target && newStu.enrolled) target.enrolled = newStu.enrolled;
-        }
-      });
-    }
-    // Merge enrollments into student records
-    if(saved.enrollments){
-      DEMO.students.forEach(function(stu){
-        stu.enrolled=DEMO.workshops.filter(function(w){return saved.enrollments[w.id];}).map(function(w){return w.id;});
-      });
-    }
-  }catch(e){}
-}
-
-/* ── LOAD PREVIOUSLY SAVED ADMIN CONTENT ── */
-function loadAdminData(){
-  try{
-    var saved=JSON.parse(localStorage.getItem(DATA_KEY));
-    if(!saved) return;
-    if(saved.workshops && saved.workshops.length) DEMO.workshops    = saved.workshops;
-    if(saved.sessions)                            DEMO.sessions     = saved.sessions;
-    if(saved.live_links)                          DEMO.live_links   = saved.live_links;
-    if(saved.competitions)                        DEMO.competitions = saved.competitions;
-  }catch(e){}
-}
-loadAdminData();
-loadStudentData();
-
-/* ── AUTO-REFRESH when tab gets focus or when student registers ── */
-document.addEventListener("visibilitychange",function(){
-  if(!document.hidden && getSession()){
-    loadStudentData();
-    if(currentTab) showTab(currentTab);
-  }
-});
-window.addEventListener("storage",function(e){
-  if((e.key === STU_DATA_KEY || e.key === DATA_KEY) && getSession()){
-    loadStudentData();
-    if(currentTab) showTab(currentTab);
-  }
-});
-
-/* ══════════════════════════════════════════════
-   HELPERS
-══════════════════════════════════════════════ */
 var $ = function(id){ return document.getElementById(id); };
-var toastEl=$("toast"), tt;
-function say(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(tt); tt=setTimeout(function(){toastEl.classList.remove("show");},3000); }
-function pad2(n){ return (n<10?"0":"")+n; }
-function fmt(t){ return t?new Date(t).toLocaleString([],{dateStyle:"medium",timeStyle:"short"}):"TBA"; }
-function fmtDate(t){ return t?new Date(t).toLocaleDateString([],{dateStyle:"medium"}):"—"; }
-function wName(id){ var w=DEMO.workshops.find(function(x){return x.id===id;}); return w?w.title:id; }
+var toastEl = $("toast"), tt;
 
-function h(tag,props){
-  var e=document.createElement(tag),k,kids=Array.prototype.slice.call(arguments,2);
-  props=props||{};
-  for(k in props){var v=props[k];
-    if(k==="class")e.className=v;
-    else if(k.slice(0,2)==="on")e.addEventListener(k.slice(2),v);
-    else if(v===true)e.setAttribute(k,"");
-    else if(v!==false&&v!=null)e.setAttribute(k,v);
+function say(m){
+  toastEl.textContent = m;
+  toastEl.classList.add("show");
+  clearTimeout(tt);
+  tt = setTimeout(function(){ toastEl.classList.remove("show"); }, 3000);
+}
+
+function pad2(n){ return (n < 10 ? "0" : "") + n; }
+function fmt(t){ return t ? new Date(t).toLocaleString([], {dateStyle:"medium", timeStyle:"short"}) : "TBA"; }
+function fmtDate(t){ return t ? new Date(t).toLocaleDateString([], {dateStyle:"medium"}) : "—"; }
+function wName(id){ var w = DB.workshops.find(function(x){ return x.id === id; }); return w ? w.title : id; }
+
+function h(tag, props){
+  var e = document.createElement(tag), k, kids = Array.prototype.slice.call(arguments, 2);
+  props = props || {};
+  for(k in props){
+    var v = props[k];
+    if(k === "class") e.className = v;
+    else if(k.slice(0, 2) === "on") e.addEventListener(k.slice(2), v);
+    else if(v === true) e.setAttribute(k, "");
+    else if(v !== false && v != null) e.setAttribute(k, v);
   }
-  (function add(list){list.forEach(function(c){if(Array.isArray(c))return add(c);if(c==null||c===false)return;e.appendChild(c.nodeType?c:document.createTextNode(String(c)));});})(kids);
+  (function add(list){
+    list.forEach(function(c){
+      if(Array.isArray(c)) return add(c);
+      if(c == null || c === false) return;
+      e.appendChild(c.nodeType ? c : document.createTextNode(String(c)));
+    });
+  })(kids);
   return e;
 }
-function msgBox(){ return h("p",{class:"msg"}); }
-function setMsg(el,t,ok){ el.textContent=t||""; el.className="msg"+(ok===true?" ok":ok===false?" err":""); }
-function fld(id,label,attrs,hint){
-  return h("div",{class:"fld"},h("label",{for:id},label),h("input",Object.assign({id:id},attrs)),hint?h("small",null,hint):null);
+
+function msgBox(){ return h("p", {class:"msg"}); }
+function setMsg(el, t, ok){ el.textContent = t || ""; el.className = "msg" + (ok === true ? " ok" : ok === false ? " err" : ""); }
+
+function fld(id, label, attrs, hint){
+  return h("div", {class:"fld"},
+    h("label", {for:id}, label),
+    h("input", Object.assign({id:id}, attrs)),
+    hint ? h("small", null, hint) : null
+  );
 }
-function selectFld(id,label,options,val){
-  var sel=h("select",{id:id},options.map(function(o){ var opt=h("option",{value:o.v},o.l); if(o.v===val)opt.selected=true; return opt; }));
-  return h("div",{class:"fld"},h("label",{for:id},label),sel);
+
+function selectFld(id, label, options, val){
+  var sel = h("select", {id:id}, options.map(function(o){
+    var opt = h("option", {value:o.v}, o.l);
+    if(o.v === val) opt.selected = true;
+    return opt;
+  }));
+  return h("div", {class:"fld"}, h("label", {for:id}, label), sel);
 }
+
 function showModal(content, onClose){
-  var root=$("modal-root");
-  var bg=h("div",{class:"modal-bg",onclick:function(e){if(e.target===bg){root.replaceChildren();if(onClose)onClose();}}},h("div",{class:"modal"},content));
+  var root = $("modal-root");
+  var bg = h("div", {class:"modal-bg", onclick:function(e){ if(e.target === bg){ root.replaceChildren(); if(onClose) onClose(); } }},
+    h("div", {class:"modal"}, content));
   root.replaceChildren(bg);
 }
 function closeModal(){ $("modal-root").replaceChildren(); }
 
 /* ══════════════════════════════════════════════
-   LOGIN SYSTEM
+   DATA FETCHING FROM SUPABASE
 ══════════════════════════════════════════════ */
-var loginMode="login"; // login | forgot
+async function loadDbData(){
+  if (!sb) return;
+  try {
+    var res = await Promise.all([
+      sb.from("workshops").select("*").order("level_no"),
+      sb.from("sessions").select("*").order("position"),
+      sb.from("workshop_links").select("*"),
+      sb.from("competitions").select("*").order("created_at"),
+      sb.from("profiles").select("*").order("created_at", { ascending: false }),
+      sb.from("enrollments").select("*"),
+      sb.from("events").select("*").order("created_at", { ascending: false }).limit(50)
+    ]);
 
-function renderLogin(){
-  var area=$("login-area");
-  area.replaceChildren();
-
-  if(loginMode==="login"){
-    var msg=msgBox();
-    var form=h("form",{class:"panel"},
-      fld("lg-u","Username",{required:true,autocomplete:"username",placeholder:"admin",value:"admin"}),
-      fld("lg-p","Password",{type:"password",required:true,autocomplete:"current-password",placeholder:"••••••••••",value:"StartHere@2026"}),
-      h("div",{style:"display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-top:.4rem"},
-        h("button",{class:"btn",type:"submit",style:"min-width:140px"},"Sign in ▶"),
-        h("button",{class:"link",type:"button",onclick:function(){loginMode="forgot";renderLogin();}},"Forgot password?")
-      ),msg
-    );
-    form.addEventListener("submit",function(ev){
-      ev.preventDefault();
-      var creds=getCreds();
-      var u=$("lg-u").value.trim(), p=$("lg-p").value;
-      if(u===creds.username && p===creds.password){
-        setSession(true); showAdminApp();
-      } else {
-        setMsg(msg,"Incorrect username or password.",false);
-        setTimeout(function(){setMsg(msg,"");},3000);
-      }
+    DB.workshops = res[0].data || [];
+    
+    // Group sessions by workshop_id
+    DB.sessions = {};
+    (res[1].data || []).forEach(function(s){
+      if(!DB.sessions[s.workshop_id]) DB.sessions[s.workshop_id] = [];
+      DB.sessions[s.workshop_id].push(s);
     });
-    area.append(form);
 
-    var notice=h("div",{class:"notice info",style:"margin-top:1rem;font-size:.83rem"},
-      "🔑 <b>Default credentials</b><br>",
-      "Username: <b>admin</b> &nbsp;·&nbsp; Password: <b>StartHere@2026</b><br>",
-      h("span",{style:"color:var(--muted)"},"Change them in Settings after signing in.")
-    );
-    area.append(notice);
-
-  } else {
-    // FORGOT PASSWORD
-    var fmsg=msgBox();
-    var step=1, codeInput="";
-    var fform=h("form",{class:"panel"});
-    function drawForgot(){
-      fform.replaceChildren();
-      if(step===1){
-        fform.append(
-          h("p",{style:"color:var(--muted);margin-bottom:1rem;font-size:.9rem"},"Enter your recovery code to reset your password."),
-          fld("fp-code","Recovery code",{required:true,placeholder:"RECOVER-2026",autocomplete:"off"}),
-          h("div",{class:"row",style:"justify-content:space-between"},
-            h("button",{class:"btn",type:"submit"},"Verify ▶"),
-            h("button",{class:"link",type:"button",onclick:function(){loginMode="login";renderLogin();}},"← Back to sign in")
-          ),fmsg
-        );
-      } else {
-        fform.append(
-          h("p",{style:"color:var(--muted);margin-bottom:1rem;font-size:.9rem"},"Code verified ✓ Set your new username and password."),
-          fld("fp-u","New username",{required:true,value:getCreds().username}),
-          fld("fp-p","New password",{type:"password",required:true,minlength:"8",placeholder:"Min. 8 characters"}),
-          fld("fp-p2","Repeat new password",{type:"password",required:true,minlength:"8"}),
-          h("button",{class:"btn",type:"submit"},"Save and sign in ▶"),fmsg
-        );
-      }
-    }
-    fform.addEventListener("submit",function(ev){
-      ev.preventDefault();
-      if(step===1){
-        var entered=$("fp-code").value.trim();
-        var creds=getCreds();
-        if(entered!==creds.recoveryCode){ setMsg(fmsg,"Wrong recovery code.",false); return; }
-        step=2; drawForgot(); setMsg(fmsg,"Code verified!",true);
-      } else {
-        var nu=$("fp-u").value.trim(), np=$("fp-p").value, np2=$("fp-p2").value;
-        if(np!==np2){ setMsg(fmsg,"Passwords do not match.",false); return; }
-        if(np.length<8){ setMsg(fmsg,"Password must be at least 8 characters.",false); return; }
-        var c=getCreds(); c.username=nu; c.password=np; saveCreds(c);
-        setSession(true); showAdminApp(); say("Password updated. You are now signed in.");
-      }
+    // Group live links by workshop_id
+    DB.live_links = {};
+    (res[2].data || []).forEach(function(l){
+      DB.live_links[l.workshop_id] = l.live_url;
     });
-    drawForgot();
-    area.append(fform);
+
+    // Group competitions by workshop_id
+    DB.competitions = {};
+    (res[3].data || []).forEach(function(c){
+      if(!DB.competitions[c.workshop_id]) DB.competitions[c.workshop_id] = [];
+      DB.competitions[c.workshop_id].push(c);
+    });
+
+    // Enrich profiles with enrolled workshop IDs
+    var enrollments = res[5].data || [];
+    DB.enrollments = enrollments;
+
+    var studentList = res[4].data || [];
+    DB.students = studentList.map(function(p){
+      var enrolledWids = enrollments.filter(function(e){ return e.user_id === p.id; }).map(function(e){ return e.workshop_id; });
+      return {
+        id: p.id,
+        full_name: p.full_name || "(Anonymous)",
+        email: p.email || (p.full_name ? p.full_name + "@student" : "student"),
+        phone: p.phone || "",
+        year: p.year || "",
+        why: p.why || "",
+        role: p.role || "user",
+        joined: p.created_at,
+        enrolled: enrolledWids
+      };
+    });
+
+    DB.events = (res[6].data || []).map(function(e){
+      return {
+        id: e.id,
+        type: e.type,
+        workshop_id: e.workshop_id,
+        workshop: wName(e.workshop_id),
+        user_id: e.user_id,
+        at: e.created_at
+      };
+    });
+
+  } catch(err) {
+    console.error("Error loading database data:", err);
+    say("Database sync error: " + err.message);
   }
 }
 
 /* ══════════════════════════════════════════════
-   SHOW / HIDE
+   LOGIN HANDLING
 ══════════════════════════════════════════════ */
-function showAdminApp(){
-  $("login-screen").hidden=true;
-  $("admin-app").hidden=false;
-  $("admin-email-display").textContent="@"+getCreds().username;
+var form = $("admin-login-form");
+var loginMsg = $("login-msg");
+var magicBtn = $("btn-magic-link");
+
+if (magicBtn) {
+  magicBtn.addEventListener("click", async function(){
+    var email = $("lg-u").value.trim();
+    if (!email) {
+      setMsg(loginMsg, "Please enter your admin email above first.", false);
+      return;
+    }
+    setMsg(loginMsg, "Sending magic link...");
+    try {
+      var res = await sb.auth.signInWithOtp({ email: email });
+      if (res.error) {
+        setMsg(loginMsg, res.error.message, false);
+      } else {
+        setMsg(loginMsg, "Magic link sent! Check your inbox.", true);
+      }
+    } catch(e) {
+      setMsg(loginMsg, e.message, false);
+    }
+  });
+}
+
+if (form) {
+  form.addEventListener("submit", async function(ev){
+    ev.preventDefault();
+    setMsg(loginMsg, "Authenticating with Supabase...");
+    var email = $("lg-u").value.trim();
+    var password = $("lg-p").value;
+
+    if (!sb) {
+      setMsg(loginMsg, "Supabase client not initialized. Check config.js.", false);
+      return;
+    }
+
+    try {
+      var res = await sb.auth.signInWithPassword({ email: email, password: password });
+      if (res.error) {
+        setMsg(loginMsg, res.error.message, false);
+        return;
+      }
+
+      var user = res.data.user;
+      var pRes = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle();
+      var profile = pRes.data;
+
+      if (!profile || profile.role !== "admin") {
+        setMsg(loginMsg, "Access denied: Account '" + email + "' is not an administrator.", false);
+        await sb.auth.signOut();
+        return;
+      }
+
+      adminUser = user;
+      adminProfile = profile;
+      setMsg(loginMsg, "Login successful!", true);
+      await showAdminApp();
+
+    } catch(err) {
+      setMsg(loginMsg, err.message || String(err), false);
+    }
+  });
+}
+
+async function showAdminApp(){
+  $("login-screen").hidden = true;
+  $("admin-app").hidden = false;
+  $("admin-email-display").textContent = adminUser ? adminUser.email : "Admin";
+
+  await loadDbData();
   buildSidebar();
   showTab("overview");
 }
-function adminLogout(){
-  setSession(false);
-  $("admin-app").hidden=true;
-  $("login-screen").hidden=false;
-  loginMode="login";
-  renderLogin();
+
+async function adminLogout(){
+  if (sb) {
+    try { await sb.auth.signOut(); } catch(e){}
+  }
+  adminUser = null;
+  adminProfile = null;
+  $("admin-app").hidden = true;
+  $("login-screen").hidden = false;
+  setMsg(loginMsg, "Signed out.", true);
   say("Signed out.");
 }
 
 /* ══════════════════════════════════════════════
-   SIDEBAR
+   SIDEBAR & TABS
 ══════════════════════════════════════════════ */
-var currentTab="overview";
+var currentTab = "overview";
+
 function buildSidebar(){
-  var side=$("admin-side");
+  var side = $("admin-side");
   side.replaceChildren();
-  function sb(tab,icon,label){
-    var b=h("button",{class:"aside-btn",onclick:function(){showTab(tab);}},h("span",{class:"ic"},icon)," "+label);
-    b.dataset.tab=tab; return b;
+  function sbBtn(tab, icon, label){
+    var b = h("button", {class:"aside-btn", onclick:function(){ showTab(tab); }},
+      h("span", {class:"ic"}, icon), " " + label);
+    b.dataset.tab = tab;
+    return b;
   }
   side.append(
-    h("div",{class:"section-label"},"Dashboard"), sb("overview","📊","Overview"),
-    h("div",{class:"section-label"},"Content"),
-    sb("workshops","🏫","Workshops"),
-    sb("sessions","📅","Sessions"),
-    sb("livelinks","🔴","Live Links"),
-    sb("competitions","🏆","Competitions"),
-    h("div",{class:"section-label"},"Students"),
-    sb("students","👥","All Students"),
-    sb("registrations","📋","Registrations"),
-    h("div",{class:"section-label"},"Analytics"),
-    sb("analytics","📈","Events Log"),
-    h("div",{class:"section-label"},"Admin"),
-    sb("settings","🔑","Settings")
+    h("div", {class:"section-label"}, "Dashboard"),
+    sbBtn("overview", "📊", "Overview"),
+    h("div", {class:"section-label"}, "Database Content"),
+    sbBtn("workshops", "🏫", "Workshops"),
+    sbBtn("sessions", "📅", "Sessions"),
+    sbBtn("livelinks", "🔴", "Live Links"),
+    sbBtn("competitions", "🏆", "Competitions"),
+    h("div", {class:"section-label"}, "Students"),
+    sbBtn("students", "👥", "All Students"),
+    sbBtn("registrations", "📋", "Registrations"),
+    h("div", {class:"section-label"}, "System"),
+    sbBtn("analytics", "📈", "Events Log")
   );
 }
-function showTab(tab){
-  currentTab=tab;
-  var side=$("admin-side");
-  if(side) side.querySelectorAll(".aside-btn").forEach(function(b){ b.classList.toggle("on",b.dataset.tab===tab); });
-  var main=$("admin-main"); main.replaceChildren();
-  var MAP={overview:tabOverview,workshops:tabWorkshops,sessions:tabSessions,livelinks:tabLiveLinks,competitions:tabCompetitions,students:tabStudents,registrations:tabRegistrations,analytics:tabAnalytics,settings:tabSettings};
-  (MAP[tab]||tabOverview)(main);
+
+async function showTab(tab){
+  currentTab = tab;
+  var side = $("admin-side");
+  if(side) side.querySelectorAll(".aside-btn").forEach(function(b){ b.classList.toggle("on", b.dataset.tab === tab); });
+  var main = $("admin-main");
+  main.replaceChildren();
+
+  var MAP = {
+    overview: tabOverview,
+    workshops: tabWorkshops,
+    sessions: tabSessions,
+    livelinks: tabLiveLinks,
+    competitions: tabCompetitions,
+    students: tabStudents,
+    registrations: tabRegistrations,
+    analytics: tabAnalytics
+  };
+
+  (MAP[tab] || tabOverview)(main);
 }
-function goSettings(){ showTab("settings"); }
 
 /* ══════════════════════════════════════════════
    TAB: OVERVIEW
 ══════════════════════════════════════════════ */
-function statCard(num,icon,label){
-  return h("div",{class:"stat-card"},h("div",{class:"num"},icon+" "+num),h("div",{class:"lbl"},label));
+function statCard(num, icon, label){
+  return h("div", {class:"stat-card"},
+    h("div", {class:"num"}, icon + " " + num),
+    h("div", {class:"lbl"}, label)
+  );
 }
+
 function tabOverview(main){
-  var totalS=DEMO.students.length;
-  var totalE=DEMO.students.reduce(function(a,s){return a+s.enrolled.length;},0);
-  var pubW=DEMO.workshops.filter(function(w){return w.published;}).length;
-  var logins=DEMO.events.filter(function(e){return e.type==="login";}).length;
-  var recClicks=DEMO.events.filter(function(e){return e.type==="watch_recording";}).length;
+  var totalStudents = DB.students.length;
+  var totalEnrollments = DB.enrollments.length;
+  var pubWorkshops = DB.workshops.filter(function(w){ return w.published; }).length;
+  var totalSessions = Object.values(DB.sessions).reduce(function(acc, s){ return acc + s.length; }, 0);
+
   main.append(
-    h("span",{class:"note"},"control room"),
-    h("h2",{style:"margin:.4rem 0 1.2rem"},"Overview"),
-    h("div",{class:"stat-grid"},
-      statCard("🟢 "+DEMO.onlineNow,"","Online now"),
-      statCard(totalS,"👥","Students"),
-      statCard(totalE,"📋","Enrollments"),
-      statCard(pubW+"/"+DEMO.workshops.length,"🏫","Live workshops"),
-      statCard(logins,"🔑","Logins"),
-      statCard(recClicks,"▶","Recording clicks")
+    h("span", {class:"note"}, "control room"),
+    h("h2", {style:"margin:.4rem 0 1.2rem"}, "Overview"),
+    h("div", {class:"stat-grid"},
+      statCard(totalStudents, "👥", "Total Students"),
+      statCard(totalEnrollments, "📋", "Total Enrollments"),
+      statCard(pubWorkshops + "/" + DB.workshops.length, "🏫", "Published Levels"),
+      statCard(totalSessions, "📅", "Total Sessions"),
+      statCard(DB.events.length, "⚡", "Tracked Events")
     ),
-    h("h3",{style:"margin-bottom:.7rem"},"Recent events"),
-    h("table",{class:"atbl"},
-      h("thead",null,h("tr",null,h("th",null,"Type"),h("th",null,"Student"),h("th",null,"Workshop"),h("th",null,"Time"))),
-      h("tbody",null,DEMO.events.slice().reverse().slice(0,10).map(function(e){
-        return h("tr",null,
-          h("td",null,h("span",{class:"badge "+(e.type==="login"?"open":e.type==="submit"?"pub":"locked")},e.type.replace(/_/g," "))),
-          h("td",null,e.user,h("br"),h("span",{class:"mono"},e.email)),
-          h("td",null,e.workshop||"—"),
-          h("td",null,h("span",{class:"mono"},fmt(e.at)))
+    h("div", {style:"display:flex;justify-content:space-between;align-items:center;margin:1.4rem 0 .7rem"},
+      h("h3", null, "Recent Registered Students"),
+      h("button", {class:"btn sm line", onclick:async function(){ await loadDbData(); tabOverview(main); say("Refreshed!"); }}, "↻ Refresh Data")
+    ),
+    h("table", {class:"atbl"},
+      h("thead", null, h("tr", null,
+        h("th", null, "Name"),
+        h("th", null, "Phone / WhatsApp"),
+        h("th", null, "Year"),
+        h("th", null, "Joined"),
+        h("th", null, "Enrolled Levels")
+      )),
+      h("tbody", null, DB.students.slice(0, 10).map(function(stu){
+        return h("tr", null,
+          h("td", null, h("b", null, stu.full_name)),
+          h("td", null, stu.phone ? h("a", {href:"https://wa.me/91" + stu.phone, target:"_blank", class:"link"}, stu.phone) : h("span", {class:"mono"}, "—")),
+          h("td", null, stu.year || "—"),
+          h("td", null, h("span", {class:"mono"}, fmtDate(stu.joined))),
+          h("td", null, stu.enrolled.length ? h("span", {class:"badge pub"}, stu.enrolled.length + " levels") : h("span", {class:"mono"}, "None"))
         );
       }))
     )
@@ -537,58 +534,92 @@ function tabWorkshops(main){
   function render(){
     main.replaceChildren();
     main.append(
-      h("div",{class:"row",style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
-        h("h2",null,"Workshops"),
-        h("button",{class:"btn",onclick:function(){workshopModal(null);}},"+ Add Workshop")
+      h("div", {class:"row", style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
+        h("h2", null, "Workshops"),
+        h("button", {class:"btn", onclick:function(){ workshopModal(null); }}, "+ Add Workshop")
       ),
-      h("table",{class:"atbl"},
-        h("thead",null,h("tr",null,h("th",null,"Level"),h("th",null,"Title"),h("th",null,"Sessions"),h("th",null,"Status"),h("th",null,"Actions"))),
-        h("tbody",null,DEMO.workshops.map(function(w){
-          var sc=(DEMO.sessions[w.id]||[]).length;
-          return h("tr",null,
-            h("td",null,h("span",{class:"mono"},"LV "+pad2(w.level_no))),
-            h("td",null,h("b",null,w.title),h("br"),h("span",{class:"mono"},w.description)),
-            h("td",null,h("span",{class:"mono"},sc+" sessions")),
-            h("td",null,h("span",{class:"badge "+(w.published?"pub":"draft")},w.published?"Published":"Draft")),
-            h("td",null,h("div",{class:"row"},
-              h("button",{class:"btn sm line",onclick:function(){workshopModal(w);}},                "Edit"),
-              h("button",{class:"btn sm "+(w.published?"warn":"success"),onclick:function(){w.published=!w.published;saveData();render();say((w.published?"Published":"Unpublished")+": "+w.title);}},w.published?"Unpublish":"Publish"),
-              h("button",{class:"btn sm danger",onclick:function(){
-                if(!confirm("Delete '"+w.title+"'?"))return;
-                DEMO.workshops=DEMO.workshops.filter(function(x){return x.id!==w.id;});
-                delete DEMO.sessions[w.id];delete DEMO.competitions[w.id];delete DEMO.live_links[w.id];
-                saveData();render();say("Deleted.");
-              }},"Delete")
+      h("table", {class:"atbl"},
+        h("thead", null, h("tr", null,
+          h("th", null, "Level"),
+          h("th", null, "Title"),
+          h("th", null, "Sessions"),
+          h("th", null, "Status"),
+          h("th", null, "Actions")
+        )),
+        h("tbody", null, DB.workshops.map(function(w){
+          var sc = (DB.sessions[w.id] || []).length;
+          return h("tr", null,
+            h("td", null, h("span", {class:"mono"}, "LV " + pad2(w.level_no))),
+            h("td", null, h("b", null, w.title), h("br"), h("span", {class:"mono"}, w.description)),
+            h("td", null, h("span", {class:"mono"}, sc + " sessions")),
+            h("td", null, h("span", {class:"badge " + (w.published ? "pub" : "draft")}, w.published ? "Published" : "Draft")),
+            h("td", null, h("div", {class:"row"},
+              h("button", {class:"btn sm line", onclick:function(){ workshopModal(w); }}, "Edit"),
+              h("button", {class:"btn sm " + (w.published ? "warn" : "success"), onclick:async function(){
+                var nextState = !w.published;
+                var res = await sb.from("workshops").update({ published: nextState }).eq("id", w.id);
+                if (res.error) { say("Error: " + res.error.message); return; }
+                w.published = nextState;
+                render();
+                say((w.published ? "Published" : "Unpublished") + ": " + w.title);
+              }}, w.published ? "Unpublish" : "Publish"),
+              h("button", {class:"btn sm danger", onclick:async function(){
+                if (!confirm("Are you sure you want to delete '" + w.title + "' from Supabase?")) return;
+                var res = await sb.from("workshops").delete().eq("id", w.id);
+                if (res.error) { say("Error: " + res.error.message); return; }
+                await loadDbData();
+                render();
+                say("Deleted workshop.");
+              }}, "Delete")
             ))
           );
         }))
       )
     );
   }
+
   function workshopModal(existing){
-    var edit=!!existing,w=existing||{id:uid(),level_no:DEMO.workshops.length+1,title:"",description:"",published:false,dates_text:""};
-    var form=h("form",null,
-      fld("wm-lvl","Level number",{type:"number",required:true,min:"1",value:w.level_no}),
-      fld("wm-title","Title",{required:true,value:w.title}),
-      h("div",{class:"fld"},h("label",{for:"wm-desc"},"Description"),h("textarea",{id:"wm-desc"},w.description||"")),
-      fld("wm-dates","Dates text",{value:w.dates_text||""},"e.g. Every Saturday 10 AM (4 sessions)"),
-      h("div",{class:"fld"},h("label",null,h("input",{type:"checkbox",id:"wm-pub",checked:w.published})," Published (visible to students)")),
-      h("div",{class:"modal-footer"},h("button",{class:"btn line",type:"button",onclick:closeModal},"Cancel"),h("button",{class:"btn",type:"submit"},edit?"Save changes":"Create"))
+    var edit = !!existing;
+    var w = existing || { level_no: DB.workshops.length + 1, title: "", description: "", published: false, dates_text: "" };
+    var form = h("form", null,
+      fld("wm-lvl", "Level number", {type:"number", required:true, min:"1", value:w.level_no}),
+      fld("wm-title", "Title", {required:true, value:w.title}),
+      h("div", {class:"fld"}, h("label", {for:"wm-desc"}, "Description"), h("textarea", {id:"wm-desc"}, w.description || "")),
+      fld("wm-dates", "Dates text", {value:w.dates_text || ""}, "e.g. Every Saturday 10 AM (4 sessions)"),
+      h("div", {class:"fld"}, h("label", null, h("input", {type:"checkbox", id:"wm-pub", checked:w.published}), " Published (visible to students)")),
+      h("div", {class:"modal-footer"},
+        h("button", {class:"btn line", type:"button", onclick:closeModal}, "Cancel"),
+        h("button", {class:"btn", type:"submit"}, edit ? "Save changes" : "Create")
+      )
     );
-    form.addEventListener("submit",function(ev){
+
+    form.addEventListener("submit", async function(ev){
       ev.preventDefault();
-      w.level_no=parseInt($("wm-lvl").value)||1;
-      w.title=$("wm-title").value.trim();
-      w.description=$("wm-desc").value.trim();
-      w.dates_text=$("wm-dates").value.trim();
-      w.published=$("wm-pub").checked;
-      if(!edit){DEMO.workshops.push(w);DEMO.sessions[w.id]=[];DEMO.competitions[w.id]=[];DEMO.live_links[w.id]="";}
-      DEMO.workshops.sort(function(a,b){return a.level_no-b.level_no;});
-      saveData();closeModal();render();say((edit?"Updated":"Created")+": "+w.title);
+      var dataToSave = {
+        level_no: parseInt($("wm-lvl").value) || 1,
+        title: $("wm-title").value.trim(),
+        description: $("wm-desc").value.trim(),
+        dates_text: $("wm-dates").value.trim(),
+        published: $("wm-pub").checked
+      };
+
+      if (edit) {
+        var res = await sb.from("workshops").update(dataToSave).eq("id", w.id);
+        if (res.error) { alert("Error: " + res.error.message); return; }
+      } else {
+        var res = await sb.from("workshops").insert(dataToSave);
+        if (res.error) { alert("Error: " + res.error.message); return; }
+      }
+
+      await loadDbData();
+      closeModal();
+      render();
+      say((edit ? "Updated" : "Created") + ": " + dataToSave.title);
     });
-    showModal([h("h3",null,(edit?"Edit":"New")+" Workshop"),form]);
-    setTimeout(function(){var el=$("wm-title");if(el)el.focus();},50);
+
+    showModal([h("h3", null, (edit ? "Edit" : "New") + " Workshop"), form]);
   }
+
   render();
 }
 
@@ -596,60 +627,101 @@ function tabWorkshops(main){
    TAB: SESSIONS
 ══════════════════════════════════════════════ */
 function tabSessions(main){
-  var selWid=DEMO.workshops[0]?DEMO.workshops[0].id:"";
+  var selWid = DB.workshops[0] ? DB.workshops[0].id : "";
+
   function render(){
     main.replaceChildren();
-    var wSel=h("select",{style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.4rem .7rem;background:var(--bg);color:var(--ink)"},
-      DEMO.workshops.map(function(w){var o=h("option",{value:w.id},"Lv "+pad2(w.level_no)+" — "+w.title);if(w.id===selWid)o.selected=true;return o;})
+    var wSel = h("select", {style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.4rem .7rem;background:var(--bg);color:var(--ink)"},
+      DB.workshops.map(function(w){
+        var o = h("option", {value:w.id}, "Lv " + pad2(w.level_no) + " — " + w.title);
+        if (w.id === selWid) o.selected = true;
+        return o;
+      })
     );
-    wSel.addEventListener("change",function(){selWid=wSel.value;render();});
-    var sess=DEMO.sessions[selWid]||[];
+    wSel.addEventListener("change", function(){ selWid = wSel.value; render(); });
+
+    var sess = DB.sessions[selWid] || [];
     main.append(
-      h("div",{class:"row",style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
-        h("h2",null,"Sessions"),h("button",{class:"btn",onclick:function(){sessionModal(null);}},"+ Add Session")
+      h("div", {class:"row", style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
+        h("h2", null, "Sessions"),
+        h("button", {class:"btn", onclick:function(){ sessionModal(null); }}, "+ Add Session")
       ),
-      h("div",{class:"row",style:"margin-bottom:1rem"},h("b",null,"Workshop:"),wSel),
-      sess.length?
-        h("table",{class:"atbl"},
-          h("thead",null,h("tr",null,h("th",null,"#"),h("th",null,"Title"),h("th",null,"Date"),h("th",null,"Recording"),h("th",null,"Actions"))),
-          h("tbody",null,sess.map(function(s,i){
-            return h("tr",null,
-              h("td",null,h("span",{class:"mono"},i+1)),
-              h("td",null,h("b",null,s.title),s.description?h("span",{class:"mono",style:"display:block"},s.description):null),
-              h("td",null,h("span",{class:"mono"},fmt(s.starts_at))),
-              h("td",null,s.recording_url?h("a",{href:s.recording_url,target:"_blank",class:"link"},"Link ↗"):h("span",{class:"mono"},"—")),
-              h("td",null,h("div",{class:"row"},
-                h("button",{class:"btn sm line",onclick:function(){sessionModal(s);}},"Edit"),
-                h("button",{class:"btn sm danger",onclick:function(){
-                  if(!confirm("Delete '"+s.title+"'?"))return;
-                  DEMO.sessions[selWid]=DEMO.sessions[selWid].filter(function(x){return x.id!==s.id;});
-                  saveData();render();say("Deleted.");
-                }},"Delete")
+      h("div", {class:"row", style:"margin-bottom:1rem"}, h("b", null, "Workshop:"), wSel),
+      sess.length ?
+        h("table", {class:"atbl"},
+          h("thead", null, h("tr", null,
+            h("th", null, "#"),
+            h("th", null, "Title"),
+            h("th", null, "Date"),
+            h("th", null, "Recording"),
+            h("th", null, "Actions")
+          )),
+          h("tbody", null, sess.map(function(s, i){
+            return h("tr", null,
+              h("td", null, h("span", {class:"mono"}, s.position || (i + 1))),
+              h("td", null, h("b", null, s.title), s.description ? h("span", {class:"mono", style:"display:block"}, s.description) : null),
+              h("td", null, h("span", {class:"mono"}, fmt(s.starts_at))),
+              h("td", null, s.recording_url ? h("a", {href:s.recording_url, target:"_blank", class:"link"}, "Link ↗") : h("span", {class:"mono"}, "—")),
+              h("td", null, h("div", {class:"row"},
+                h("button", {class:"btn sm line", onclick:function(){ sessionModal(s); }}, "Edit"),
+                h("button", {class:"btn sm danger", onclick:async function(){
+                  if (!confirm("Delete '" + s.title + "' from Supabase?")) return;
+                  var res = await sb.from("sessions").delete().eq("id", s.id);
+                  if (res.error) { say("Error: " + res.error.message); return; }
+                  await loadDbData();
+                  render();
+                  say("Deleted session.");
+                }}, "Delete")
               ))
             );
           }))
-        ):h("p",{style:"color:var(--muted);margin-top:1rem"},"No sessions yet.")
+        ) : h("p", {style:"color:var(--muted);margin-top:1rem"}, "No sessions yet for this level.")
     );
   }
+
   function sessionModal(existing){
-    var edit=!!existing,s=existing||{id:uid(),title:"",starts_at:"",description:"",recording_url:""};
-    var form=h("form",null,
-      fld("sm-title","Session title",{required:true,value:s.title}),
-      fld("sm-date","Date & time",{type:"datetime-local",value:s.starts_at}),
-      h("div",{class:"fld"},h("label",{for:"sm-desc"},"Short description"),h("textarea",{id:"sm-desc",style:"min-height:60px"},s.description||"")),
-      fld("sm-rec","Recording URL",{type:"url",value:s.recording_url||""}),
-      h("div",{class:"modal-footer"},h("button",{class:"btn line",type:"button",onclick:closeModal},"Cancel"),h("button",{class:"btn",type:"submit"},edit?"Save":"Add session"))
+    var edit = !!existing;
+    var s = existing || { title: "", starts_at: "", description: "", recording_url: "", position: (DB.sessions[selWid] || []).length + 1 };
+    var form = h("form", null,
+      fld("sm-title", "Session title", {required:true, value:s.title}),
+      fld("sm-pos", "Position (order)", {type:"number", min:"1", value:s.position || 1}),
+      fld("sm-date", "Date & time", {type:"datetime-local", value:s.starts_at ? new Date(s.starts_at).toISOString().slice(0, 16) : ""}),
+      h("div", {class:"fld"}, h("label", {for:"sm-desc"}, "Short description"), h("textarea", {id:"sm-desc", style:"min-height:60px"}, s.description || "")),
+      fld("sm-rec", "Recording URL", {type:"url", value:s.recording_url || ""}),
+      h("div", {class:"modal-footer"},
+        h("button", {class:"btn line", type:"button", onclick:closeModal}, "Cancel"),
+        h("button", {class:"btn", type:"submit"}, edit ? "Save" : "Add session")
+      )
     );
-    form.addEventListener("submit",function(ev){
+
+    form.addEventListener("submit", async function(ev){
       ev.preventDefault();
-      s.title=$("sm-title").value.trim();s.starts_at=$("sm-date").value;
-      s.description=$("sm-desc").value.trim();s.recording_url=$("sm-rec").value.trim();
-      if(!edit)DEMO.sessions[selWid].push(s);
-      saveData();closeModal();render();say((edit?"Updated":"Added")+": "+s.title);
+      var dataToSave = {
+        workshop_id: selWid,
+        title: $("sm-title").value.trim(),
+        position: parseInt($("sm-pos").value) || 1,
+        starts_at: $("sm-date").value ? new Date($("sm-date").value).toISOString() : null,
+        description: $("sm-desc").value.trim(),
+        recording_url: $("sm-rec").value.trim() || null
+      };
+
+      if (edit) {
+        var res = await sb.from("sessions").update(dataToSave).eq("id", s.id);
+        if (res.error) { alert("Error: " + res.error.message); return; }
+      } else {
+        var res = await sb.from("sessions").insert(dataToSave);
+        if (res.error) { alert("Error: " + res.error.message); return; }
+      }
+
+      await loadDbData();
+      closeModal();
+      render();
+      say((edit ? "Updated" : "Added") + ": " + dataToSave.title);
     });
-    showModal([h("h3",null,(edit?"Edit":"New")+" Session — "+wName(selWid)),form]);
-    setTimeout(function(){var el=$("sm-title");if(el)el.focus();},50);
+
+    showModal([h("h3", null, (edit ? "Edit" : "New") + " Session — " + wName(selWid)), form]);
   }
+
   render();
 }
 
@@ -658,21 +730,50 @@ function tabSessions(main){
 ══════════════════════════════════════════════ */
 function tabLiveLinks(main){
   main.append(
-    h("h2",{style:"margin-bottom:.6rem"},"Live Links"),
-    h("p",{style:"color:var(--muted);margin-bottom:1.4rem;font-size:.9rem"},"Set the live meeting URL per workshop. Students see a 'Join Live' button when a URL is saved."),
-    h("div",{class:"stack"},
-      DEMO.workshops.map(function(w){
-        var msg=msgBox();
-        var inp=h("input",{type:"url",placeholder:"https://meet.google.com/...",value:DEMO.live_links[w.id]||"",style:"flex:1;font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.55rem .8rem;min-height:42px;background:var(--bg);color:var(--ink)"});
-        return h("div",{class:"panel"},
-          h("div",{class:"row",style:"justify-content:space-between;margin-bottom:.8rem"},
-            h("h3",null,"Lv "+pad2(w.level_no)+": "+w.title),
-            h("span",{class:"badge "+(w.published?"pub":"draft")},w.published?"Published":"Draft")
+    h("h2", {style:"margin-bottom:.6rem"}, "Live Links"),
+    h("p", {style:"color:var(--muted);margin-bottom:1.4rem;font-size:.9rem"}, "Set the meeting URL per workshop in Supabase. Students see a 'Join live ▶' button when a URL is active."),
+    h("div", {class:"stack"},
+      DB.workshops.map(function(w){
+        var msg = msgBox();
+        var currentUrl = DB.live_links[w.id] || "";
+        var inp = h("input", {
+          type:"url",
+          placeholder:"https://meet.google.com/...",
+          value:currentUrl,
+          style:"flex:1;font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.55rem .8rem;min-height:42px;background:var(--bg);color:var(--ink)"
+        });
+
+        return h("div", {class:"panel"},
+          h("div", {class:"row", style:"justify-content:space-between;margin-bottom:.8rem"},
+            h("h3", null, "Lv " + pad2(w.level_no) + ": " + w.title),
+            h("span", {class:"badge " + (w.published ? "pub" : "draft")}, w.published ? "Published" : "Draft")
           ),
-          h("div",{class:"row"},inp,
-            h("button",{class:"btn sm",onclick:function(){DEMO.live_links[w.id]=inp.value.trim();saveData();setMsg(msg,inp.value.trim()?"Link saved ✓":"Cleared.",true);}},  "Save"),
-            inp.value?h("button",{class:"btn sm danger",onclick:function(){inp.value="";DEMO.live_links[w.id]="";saveData();setMsg(msg,"Link removed.",true);}},"Clear"):null
-          ),msg
+          h("div", {class:"row"},
+            inp,
+            h("button", {class:"btn sm", onclick:async function(){
+              var val = inp.value.trim();
+              if (val) {
+                var res = await sb.from("workshop_links").upsert({
+                  workshop_id: w.id,
+                  live_url: val
+                }, { onConflict: "workshop_id" });
+                if (res.error) return setMsg(msg, res.error.message, false);
+                DB.live_links[w.id] = val;
+                setMsg(msg, "Link saved to database ✓", true);
+              } else {
+                await sb.from("workshop_links").delete().eq("workshop_id", w.id);
+                delete DB.live_links[w.id];
+                setMsg(msg, "Link cleared from database.", true);
+              }
+            }}, "Save"),
+            currentUrl ? h("button", {class:"btn sm danger", onclick:async function(){
+              inp.value = "";
+              await sb.from("workshop_links").delete().eq("workshop_id", w.id);
+              delete DB.live_links[w.id];
+              setMsg(msg, "Link removed.", true);
+            }}, "Clear") : null
+          ),
+          msg
         );
       })
     )
@@ -683,83 +784,128 @@ function tabLiveLinks(main){
    TAB: COMPETITIONS
 ══════════════════════════════════════════════ */
 function tabCompetitions(main){
-  var selWid=DEMO.workshops[0]?DEMO.workshops[0].id:"";
+  var selWid = DB.workshops[0] ? DB.workshops[0].id : "";
+
   function render(){
     main.replaceChildren();
-    var wSel=h("select",{style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.4rem .7rem;background:var(--bg);color:var(--ink)"},
-      DEMO.workshops.map(function(w){var o=h("option",{value:w.id},"Lv "+pad2(w.level_no)+" — "+w.title);if(w.id===selWid)o.selected=true;return o;})
+    var wSel = h("select", {style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.4rem .7rem;background:var(--bg);color:var(--ink)"},
+      DB.workshops.map(function(w){
+        var o = h("option", {value:w.id}, "Lv " + pad2(w.level_no) + " — " + w.title);
+        if (w.id === selWid) o.selected = true;
+        return o;
+      })
     );
-    wSel.addEventListener("change",function(){selWid=wSel.value;render();});
-    var comps=DEMO.competitions[selWid]||[];
+    wSel.addEventListener("change", function(){ selWid = wSel.value; render(); });
+
+    var comps = DB.competitions[selWid] || [];
+
     main.append(
-      h("div",{class:"row",style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
-        h("h2",null,"Competitions"),h("button",{class:"btn",onclick:function(){compModal(null);}},"+ Add Competition")
+      h("div", {class:"row", style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
+        h("h2", null, "Competitions"),
+        h("button", {class:"btn", onclick:function(){ compModal(null); }}, "+ Add Competition")
       ),
-      h("div",{class:"row",style:"margin-bottom:1rem"},h("b",null,"Workshop:"),wSel),
-      comps.length?
-        h("div",{class:"stack"},comps.map(function(c){
-          return h("div",{class:"panel"},
-            h("div",{class:"row",style:"justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.6rem"},
-              h("div",null,h("h3",null,c.title),c.description?h("p",{style:"color:var(--muted);font-size:.88rem;margin-top:.2rem"},c.description):null),
-              h("span",{class:"badge "+c.status},c.status)
+      h("div", {class:"row", style:"margin-bottom:1rem"}, h("b", null, "Workshop:"), wSel),
+      comps.length ?
+        h("div", {class:"stack"}, comps.map(function(c){
+          return h("div", {class:"panel"},
+            h("div", {class:"row", style:"justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.6rem"},
+              h("div", null,
+                h("h3", null, c.title),
+                c.description ? h("p", {style:"color:var(--muted);font-size:.88rem;margin-top:.2rem"}, c.description) : null
+              ),
+              h("span", {class:"badge " + c.status}, c.status)
             ),
-            h("p",{class:"mono",style:"margin-bottom:.8rem"},c.fields.length+" fields · closes: "+(c.closes_at?fmt(c.closes_at):"open-ended")),
-            h("div",{class:"row"},
-              h("button",{class:"btn sm line",onclick:function(){compModal(c);}},"Edit"),
-              c.status!=="open"   ?h("button",{class:"btn sm success",onclick:function(){c.status="open";saveData();render();say("Opened: "+c.title);}},  "Open"):null,
-              c.status!=="closed" ?h("button",{class:"btn sm warn",onclick:function(){c.status="closed";saveData();render();say("Closed: "+c.title);}},   "Close"):null,
-              c.status!=="locked" ?h("button",{class:"btn sm line",onclick:function(){c.status="locked";saveData();render();say("Locked: "+c.title);}},   "Lock"):null,
-              h("button",{class:"btn sm danger",onclick:function(){
-                if(!confirm("Delete '"+c.title+"'?"))return;
-                DEMO.competitions[selWid]=DEMO.competitions[selWid].filter(function(x){return x.id!==c.id;});
-                saveData();render();say("Deleted.");
-              }},"Delete")
+            h("p", {class:"mono", style:"margin-bottom:.8rem"}, (c.fields || []).length + " fields · closes: " + (c.closes_at ? fmt(c.closes_at) : "open-ended")),
+            h("div", {class:"row"},
+              h("button", {class:"btn sm line", onclick:function(){ compModal(c); }}, "Edit"),
+              c.status !== "open" ? h("button", {class:"btn sm success", onclick:async function(){
+                var res = await sb.from("competitions").update({ status:"open" }).eq("id", c.id);
+                if (res.error) { say(res.error.message); return; }
+                c.status = "open"; render(); say("Opened: " + c.title);
+              }}, "Open") : null,
+              c.status !== "closed" ? h("button", {class:"btn sm warn", onclick:async function(){
+                var res = await sb.from("competitions").update({ status:"closed" }).eq("id", c.id);
+                if (res.error) { say(res.error.message); return; }
+                c.status = "closed"; render(); say("Closed: " + c.title);
+              }}, "Close") : null,
+              h("button", {class:"btn sm danger", onclick:async function(){
+                if (!confirm("Delete competition '" + c.title + "' from Supabase?")) return;
+                var res = await sb.from("competitions").delete().eq("id", c.id);
+                if (res.error) { say(res.error.message); return; }
+                await loadDbData(); render(); say("Deleted.");
+              }}, "Delete")
             )
           );
-        })):
-        h("p",{style:"color:var(--muted);margin-top:1rem"},"No competitions yet for this workshop.")
+        })) : h("p", {style:"color:var(--muted);margin-top:1rem"}, "No competitions yet for this workshop.")
     );
   }
+
   function compModal(existing){
-    var edit=!!existing,c=existing||{id:uid(),title:"",description:"",status:"locked",closes_at:"",workshop_id:selWid,fields:[]};
-    var fieldRows=h("div",{style:"display:grid;gap:.5rem;margin-bottom:.8rem"});
+    var edit = !!existing;
+    var c = existing || { title: "", description: "", status: "locked", closes_at: "", workshop_id: selWid, fields: [] };
+    var currentFields = Array.isArray(c.fields) ? JSON.parse(JSON.stringify(c.fields)) : [];
+    var fieldRows = h("div", {style:"display:grid;gap:.5rem;margin-bottom:.8rem"});
+
     function redraw(){
       fieldRows.replaceChildren();
-      c.fields.forEach(function(f,i){
-        fieldRows.append(h("div",{class:"row"},
-          h("input",{value:f.label,placeholder:"Field label",style:"flex:1;font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.45rem .7rem",oninput:function(e){f.label=e.target.value;}}),
-          h("select",{style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.45rem",onchange:function(e){f.type=e.target.value;}},
-            ["short","long","url","number","email"].map(function(t){var o=h("option",{value:t},t);if(t===f.type)o.selected=true;return o;})
+      currentFields.forEach(function(f, i){
+        fieldRows.append(h("div", {class:"row"},
+          h("input", {value:f.label, placeholder:"Field label", style:"flex:1;font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.45rem .7rem", oninput:function(e){ f.label = e.target.value; }}),
+          h("select", {style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.45rem", onchange:function(e){ f.type = e.target.value; }},
+            ["short", "long", "url", "number", "email"].map(function(t){ var o = h("option", {value:t}, t); if(t === f.type) o.selected = true; return o; })
           ),
-          h("label",{style:"display:flex;align-items:center;gap:.3rem;font-size:.8rem;white-space:nowrap;cursor:pointer"},
-            h("input",{type:"checkbox",checked:f.required,style:"width:18px;height:18px;accent-color:var(--pink)",onchange:function(e){f.required=e.target.checked;}}),"Req."
+          h("label", {style:"display:flex;align-items:center;gap:.3rem;font-size:.8rem;white-space:nowrap;cursor:pointer"},
+            h("input", {type:"checkbox", checked:f.required, style:"width:18px;height:18px;accent-color:var(--pink)", onchange:function(e){ f.required = e.target.checked; }}), "Req."
           ),
-          h("button",{class:"btn sm danger",type:"button",onclick:function(){c.fields.splice(i,1);redraw();}},          "✕")
+          h("button", {class:"btn sm danger", type:"button", onclick:function(){ currentFields.splice(i, 1); redraw(); }}, "✕")
         ));
       });
     }
     redraw();
-    var form=h("form",null,
-      fld("cm-title","Title",{required:true,value:c.title}),
-      h("div",{class:"fld"},h("label",{for:"cm-desc"},"Description"),h("textarea",{id:"cm-desc",style:"min-height:55px"},c.description||"")),
-      selectFld("cm-status","Status",[{v:"locked",l:"Locked"},{v:"open",l:"Open"},{v:"closed",l:"Closed"}],c.status),
-      fld("cm-closes","Closes at",{type:"datetime-local",value:c.closes_at||""}),
-      h("h4",{style:"margin:.8rem 0 .4rem"},"Form fields"),
+
+    var form = h("form", null,
+      fld("cm-title", "Title", {required:true, value:c.title}),
+      h("div", {class:"fld"}, h("label", {for:"cm-desc"}, "Description"), h("textarea", {id:"cm-desc", style:"min-height:55px"}, c.description || "")),
+      selectFld("cm-status", "Status", [{v:"locked", l:"Locked"}, {v:"open", l:"Open"}, {v:"closed", l:"Closed"}], c.status),
+      fld("cm-closes", "Closes at", {type:"datetime-local", value:c.closes_at ? new Date(c.closes_at).toISOString().slice(0, 16) : ""}),
+      h("h4", {style:"margin:.8rem 0 .4rem"}, "Form fields"),
       fieldRows,
-      h("button",{class:"btn sm line",type:"button",onclick:function(){c.fields.push({key:"f"+uid(),label:"",type:"short",required:false});redraw();}},"+ Add field"),
-      h("div",{class:"modal-footer"},h("button",{class:"btn line",type:"button",onclick:closeModal},"Cancel"),h("button",{class:"btn",type:"submit"},edit?"Save":"Create"))
+      h("button", {class:"btn sm line", type:"button", onclick:function(){ currentFields.push({key:"f" + Date.now(), label:"", type:"short", required:false}); redraw(); }}, "+ Add field"),
+      h("div", {class:"modal-footer"},
+        h("button", {class:"btn line", type:"button", onclick:closeModal}, "Cancel"),
+        h("button", {class:"btn", type:"submit"}, edit ? "Save" : "Create")
+      )
     );
-    form.addEventListener("submit",function(ev){
+
+    form.addEventListener("submit", async function(ev){
       ev.preventDefault();
-      c.title=$("cm-title").value.trim();c.description=$("cm-desc").value.trim();
-      c.status=$("cm-status").value;c.closes_at=$("cm-closes").value;
-      c.fields.forEach(function(f,i){f.key=f.key||("f"+i);});
-      if(!edit)DEMO.competitions[selWid].push(c);
-      saveData();closeModal();render();say((edit?"Updated":"Created")+": "+c.title);
+      currentFields.forEach(function(f, i){ f.key = f.key || ("f" + i); });
+      var dataToSave = {
+        workshop_id: selWid,
+        title: $("cm-title").value.trim(),
+        description: $("cm-desc").value.trim(),
+        status: $("cm-status").value,
+        closes_at: $("cm-closes").value ? new Date($("cm-closes").value).toISOString() : null,
+        fields: currentFields
+      };
+
+      if (edit) {
+        var res = await sb.from("competitions").update(dataToSave).eq("id", c.id);
+        if (res.error) { alert("Error: " + res.error.message); return; }
+      } else {
+        var res = await sb.from("competitions").insert(dataToSave);
+        if (res.error) { alert("Error: " + res.error.message); return; }
+      }
+
+      await loadDbData();
+      closeModal();
+      render();
+      say((edit ? "Updated" : "Created") + ": " + dataToSave.title);
     });
-    showModal([h("h3",null,(edit?"Edit":"New")+" Competition"),form]);
-    setTimeout(function(){var el=$("cm-title");if(el)el.focus();},50);
+
+    showModal([h("h3", null, (edit ? "Edit" : "New") + " Competition"), form]);
   }
+
   render();
 }
 
@@ -770,30 +916,42 @@ function tabStudents(main){
   function render(){
     main.replaceChildren();
     main.append(
-      h("h2",{style:"margin-bottom:1.2rem"},"All Students ("+DEMO.students.length+")"),
-      h("table",{class:"atbl"},
-        h("thead",null,h("tr",null,
-          h("th",null,"Name"),h("th",null,"Email"),h("th",null,"Year"),
-          h("th",null,"Enrolled"),h("th",null,"WhatsApp"),h("th",null,"Joined"),h("th",null,"Role"),h("th",null,"Actions")
+      h("div", {class:"row", style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
+        h("h2", null, "All Registered Students (" + DB.students.length + ")"),
+        h("button", {class:"btn sm line", onclick:async function(){ await loadDbData(); render(); say("Refreshed!"); }}, "↻ Refresh")
+      ),
+      h("table", {class:"atbl"},
+        h("thead", null, h("tr", null,
+          h("th", null, "Name"),
+          h("th", null, "Year"),
+          h("th", null, "Enrolled"),
+          h("th", null, "WhatsApp"),
+          h("th", null, "Confusion / Why"),
+          h("th", null, "Joined"),
+          h("th", null, "Role"),
+          h("th", null, "Actions")
         )),
-        h("tbody",null,DEMO.students.map(function(stu){
-          return h("tr",null,
-            h("td",null,h("b",null,stu.full_name)),
-            h("td",null,h("span",{class:"mono"},stu.email)),
-            h("td",null,stu.year||"—"),
-            h("td",null,stu.enrolled.map(wName).join(", ")||"None"),
-            h("td",null,stu.phone?h("a",{href:"https://wa.me/91"+stu.phone,target:"_blank",class:"link"},stu.phone):h("span",{class:"mono"},"—")),
-            h("td",null,h("span",{class:"mono"},fmtDate(stu.joined))),
-            h("td",null,h("span",{class:"badge "+(stu.role==="admin"?"admin":"locked")},stu.role)),
-            h("td",null,h("div",{class:"row"},
-              stu.role!=="admin"
-                ?h("button",{class:"btn sm warn",onclick:function(){stu.role="admin";render();say("Made admin: "+stu.full_name);}},"Make Admin")
-                :h("button",{class:"btn sm line",onclick:function(){stu.role="user";render();say("Removed admin: "+stu.full_name);}},"Remove Admin"),
-              h("button",{class:"btn sm danger",onclick:function(){
-                if(!confirm("Remove "+stu.full_name+"?"))return;
-                DEMO.students=DEMO.students.filter(function(x){return x.id!==stu.id;});
-                render();say("Removed.");
-              }},"Remove")
+        h("tbody", null, DB.students.map(function(stu){
+          return h("tr", null,
+            h("td", null, h("b", null, stu.full_name)),
+            h("td", null, stu.year || "—"),
+            h("td", null, stu.enrolled.map(wName).join(", ") || "None"),
+            h("td", null, stu.phone ? h("a", {href:"https://wa.me/91" + stu.phone, target:"_blank", class:"link"}, stu.phone) : h("span", {class:"mono"}, "—")),
+            h("td", null, h("span", {class:"mono", title:stu.why || ""}, (stu.why && stu.why.length > 30) ? stu.why.slice(0, 30) + "…" : (stu.why || "—"))),
+            h("td", null, h("span", {class:"mono"}, fmtDate(stu.joined))),
+            h("td", null, h("span", {class:"badge " + (stu.role === "admin" ? "admin" : "locked")}, stu.role)),
+            h("td", null, h("div", {class:"row"},
+              stu.role !== "admin"
+                ? h("button", {class:"btn sm warn", onclick:async function(){
+                    var res = await sb.from("profiles").update({ role:"admin" }).eq("id", stu.id);
+                    if (res.error) { say(res.error.message); return; }
+                    stu.role = "admin"; render(); say("Promoted to admin: " + stu.full_name);
+                  }}, "Make Admin")
+                : h("button", {class:"btn sm line", onclick:async function(){
+                    var res = await sb.from("profiles").update({ role:"user" }).eq("id", stu.id);
+                    if (res.error) { say(res.error.message); return; }
+                    stu.role = "user"; render(); say("Removed admin: " + stu.full_name);
+                  }}, "Remove Admin")
             ))
           );
         }))
@@ -807,151 +965,97 @@ function tabStudents(main){
    TAB: REGISTRATIONS
 ══════════════════════════════════════════════ */
 function tabRegistrations(main){
-  var selWid=DEMO.workshops[0]?DEMO.workshops[0].id:"";
-  function render(){
-    main.replaceChildren();
-    var wSel=h("select",{style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.4rem .7rem;background:var(--bg);color:var(--ink)"},
-      DEMO.workshops.map(function(w){var o=h("option",{value:w.id},"Lv "+pad2(w.level_no)+" — "+w.title);if(w.id===selWid)o.selected=true;return o;})
-    );
-    wSel.addEventListener("change",function(){selWid=wSel.value;render();});
-    var enrolled=DEMO.students.filter(function(s){return s.enrolled.indexOf(selWid)>=0;});
-    main.append(
-      h("h2",{style:"margin-bottom:1.2rem"},"Registrations"),
-      h("div",{class:"row",style:"margin-bottom:1rem"},h("b",null,"Workshop:"),wSel),
-      h("p",{class:"mono",style:"margin-bottom:.8rem"},enrolled.length+" students enrolled"),
-      enrolled.length?
-        h("table",{class:"atbl"},
-          h("thead",null,h("tr",null,h("th",null,"Name"),h("th",null,"Email"),h("th",null,"Year"),h("th",null,"WhatsApp"),h("th",null,"Joined"))),
-          h("tbody",null,enrolled.map(function(stu){
-            return h("tr",null,
-              h("td",null,h("b",null,stu.full_name)),
-              h("td",null,h("span",{class:"mono"},stu.email)),
-              h("td",null,stu.year||"—"),
-              h("td",null,stu.phone?h("a",{href:"https://wa.me/91"+stu.phone,target:"_blank",class:"link"},stu.phone):h("span",{class:"mono"},"—")),
-              h("td",null,h("span",{class:"mono"},fmtDate(stu.joined)))
-            );
-          }))
-        ):
-        h("p",{style:"color:var(--muted);margin-top:1rem"},"No students enrolled yet.")
-    );
-  }
-  render();
-}
+  var selWid = DB.workshops[0] ? DB.workshops[0].id : "";
 
-/* ══════════════════════════════════════════════
-   TAB: ANALYTICS
-══════════════════════════════════════════════ */
-function tabAnalytics(main){
-  var filter="all";
-  var types=["all","login","visit","join_live","watch_recording","submit"];
   function render(){
     main.replaceChildren();
-    var onlineCard=h("div",{class:"stat-card",style:"display:inline-block;margin-bottom:1.4rem"},
-      h("div",{class:"num"},"🟢 "+DEMO.onlineNow),
-      h("div",{class:"lbl"},"Online now"),
-      h("button",{class:"btn sm line",style:"margin-top:.5rem",onclick:function(){
-        var v=prompt("Set online count (demo):",DEMO.onlineNow);
-        if(v!==null&&!isNaN(+v)){DEMO.onlineNow=+v;render();}
-      }},"Change")
-    );
-    var tabs=h("div",{class:"tabs",style:"margin-bottom:1rem"},
-      types.map(function(t){
-        return h("button",{class:filter===t?"on":"",onclick:function(){filter=t;render();}},
-          t==="all"?"All events":t.replace(/_/g," "));
+    var wSel = h("select", {style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.4rem .7rem;background:var(--bg);color:var(--ink)"},
+      DB.workshops.map(function(w){
+        var o = h("option", {value:w.id}, "Lv " + pad2(w.level_no) + " — " + w.title);
+        if (w.id === selWid) o.selected = true;
+        return o;
       })
     );
-    var evts=filter==="all"?DEMO.events:DEMO.events.filter(function(e){return e.type===filter;});
+    wSel.addEventListener("change", function(){ selWid = wSel.value; render(); });
+
+    var enrolledStudents = DB.students.filter(function(s){ return s.enrolled.indexOf(selWid) >= 0; });
+
     main.append(
-      h("h2",{style:"margin-bottom:.8rem"},"Events Log"),onlineCard,
-      h("h3",{style:"margin-bottom:.5rem"},"Filter"),tabs,
-      h("p",{class:"mono",style:"margin-bottom:.7rem"},evts.length+" events"),
-      evts.length?
-        h("table",{class:"atbl"},
-          h("thead",null,h("tr",null,h("th",null,"Type"),h("th",null,"Student"),h("th",null,"Email"),h("th",null,"Workshop"),h("th",null,"Time"))),
-          h("tbody",null,evts.slice().reverse().map(function(e){
-            return h("tr",null,
-              h("td",null,h("span",{class:"badge "+(e.type==="login"?"open":e.type==="submit"?"pub":"locked")},e.type.replace(/_/g," "))),
-              h("td",null,e.user),
-              h("td",null,h("span",{class:"mono"},e.email)),
-              h("td",null,e.workshop||"—"),
-              h("td",null,h("span",{class:"mono"},fmt(e.at)))
+      h("h2", {style:"margin-bottom:1.2rem"}, "Level Registrations"),
+      h("div", {class:"row", style:"margin-bottom:1rem"}, h("b", null, "Workshop:"), wSel),
+      h("p", {class:"mono", style:"margin-bottom:.8rem"}, enrolledStudents.length + " students enrolled in this level"),
+      enrolledStudents.length ?
+        h("table", {class:"atbl"},
+          h("thead", null, h("tr", null,
+            h("th", null, "Name"),
+            h("th", null, "Year"),
+            h("th", null, "WhatsApp"),
+            h("th", null, "Joined")
+          )),
+          h("tbody", null, enrolledStudents.map(function(stu){
+            return h("tr", null,
+              h("td", null, h("b", null, stu.full_name)),
+              h("td", null, stu.year || "—"),
+              h("td", null, stu.phone ? h("a", {href:"https://wa.me/91" + stu.phone, target:"_blank", class:"link"}, stu.phone) : h("span", {class:"mono"}, "—")),
+              h("td", null, h("span", {class:"mono"}, fmtDate(stu.joined)))
             );
           }))
-        ):h("p",{style:"color:var(--muted);margin-top:1rem"},"No events yet.")
+        ) : h("p", {style:"color:var(--muted);margin-top:1rem"}, "No students enrolled yet for this level.")
     );
   }
   render();
 }
 
 /* ══════════════════════════════════════════════
-   TAB: SETTINGS  (change username / password / recovery code)
+   TAB: ANALYTICS (Events Log)
 ══════════════════════════════════════════════ */
-function tabSettings(main){
-  var creds=getCreds();
-  var msg1=msgBox(), msg2=msgBox();
-
-  // Change username & password
-  var f1=h("form",{class:"panel"},
-    h("h3",{style:"margin-bottom:1rem"},"Change username & password"),
-    fld("st-u","New username",{required:true,value:creds.username}),
-    fld("st-p","New password",{type:"password",required:true,minlength:"8",placeholder:"Min. 8 characters"}),
-    fld("st-p2","Repeat new password",{type:"password",required:true,minlength:"8"}),
-    fld("st-cur","Current password (to confirm)",{type:"password",required:true}),
-    h("button",{class:"btn",type:"submit"},"Save changes"),msg1
-  );
-  f1.addEventListener("submit",function(ev){
-    ev.preventDefault();
-    var cur=getCreds();
-    if($("st-cur").value!==cur.password){setMsg(msg1,"Current password is wrong.",false);return;}
-    if($("st-p").value!==$("st-p2").value){setMsg(msg1,"New passwords do not match.",false);return;}
-    cur.username=$("st-u").value.trim();
-    cur.password=$("st-p").value;
-    saveCreds(cur);
-    $("admin-email-display").textContent="@"+cur.username;
-    $("st-p").value="";$("st-p2").value="";$("st-cur").value="";
-    setMsg(msg1,"Saved ✓",true);say("Credentials updated.");
-  });
-
-  // Change recovery code
-  var f2=h("form",{class:"panel"},
-    h("h3",{style:"margin-bottom:1rem"},"Change recovery code"),
-    h("p",{style:"color:var(--muted);margin-bottom:.8rem;font-size:.9rem"},"This code lets you reset your password if you forget it. Keep it safe — don't share it."),
-    fld("st-rc","New recovery code",{required:true,value:creds.recoveryCode,autocomplete:"off"}),
-    fld("st-rcp","Current password (to confirm)",{type:"password",required:true}),
-    h("button",{class:"btn",type:"submit"},"Update recovery code"),msg2
-  );
-  f2.addEventListener("submit",function(ev){
-    ev.preventDefault();
-    var cur=getCreds();
-    if($("st-rcp").value!==cur.password){setMsg(msg2,"Current password is wrong.",false);return;}
-    var newCode=$("st-rc").value.trim();
-    if(!newCode){setMsg(msg2,"Recovery code cannot be empty.",false);return;}
-    cur.recoveryCode=newCode; saveCreds(cur);
-    setMsg(msg2,"Recovery code updated ✓",true);say("Recovery code saved.");
-  });
-
+function tabAnalytics(main){
   main.append(
-    h("span",{class:"note"},"admin settings"),
-    h("h2",{style:"margin:.4rem 0 1.2rem"},"Settings"),
-    h("div",{class:"notice info"},"⚠ These credentials are stored in this browser's localStorage. They protect this admin panel independently of the student login."),
-    h("div",{class:"stack"},f1,f2,
-      h("div",{class:"panel"},
-        h("h3",{style:"margin-bottom:.8rem"},"Sign out"),
-        h("p",{style:"color:var(--muted);margin-bottom:.8rem;font-size:.9rem"},"Signing out clears the session. You'll need to log in again to access the admin panel."),
-        h("button",{class:"btn danger",onclick:adminLogout},"Sign out now")
-      )
-    )
+    h("div", {class:"row", style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
+      h("h2", null, "System Events Log"),
+      h("button", {class:"btn sm line", onclick:async function(){ await loadDbData(); tabAnalytics(main); say("Refreshed!"); }}, "↻ Refresh")
+    ),
+    h("p", {class:"mono", style:"margin-bottom:.7rem"}, DB.events.length + " events recorded in Supabase"),
+    DB.events.length ?
+      h("table", {class:"atbl"},
+        h("thead", null, h("tr", null,
+          h("th", null, "Type"),
+          h("th", null, "Workshop"),
+          h("th", null, "User ID"),
+          h("th", null, "Time")
+        )),
+        h("tbody", null, DB.events.map(function(e){
+          return h("tr", null,
+            h("td", null, h("span", {class:"badge " + (e.type === "login" ? "open" : "locked")}, e.type)),
+            h("td", null, e.workshop || "—"),
+            h("td", null, h("span", {class:"mono"}, (e.user_id ? e.user_id.slice(0, 8) + "…" : "—"))),
+            h("td", null, h("span", {class:"mono"}, fmt(e.at)))
+          );
+        }))
+      ) : h("p", {style:"color:var(--muted);margin-top:1rem"}, "No events logged yet.")
   );
 }
 
 /* ══════════════════════════════════════════════
-   INIT
+   INIT / CHECK EXISTING SESSION
 ══════════════════════════════════════════════ */
-if(getSession()){
-  showAdminApp();
-} else {
-  renderLogin();
-}
+(async function init(){
+  if (!sb) return;
+  try {
+    var res = await sb.auth.getSession();
+    var session = res.data && res.data.session;
+    if (session && session.user) {
+      var pRes = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+      if (pRes.data && pRes.data.role === "admin") {
+        adminUser = session.user;
+        adminProfile = pRes.data;
+        await showAdminApp();
+      }
+    }
+  } catch(e){
+    console.warn("Session check notice:", e);
+  }
+})();
 
 })();
 </script>
