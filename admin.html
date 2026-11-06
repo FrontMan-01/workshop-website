@@ -161,7 +161,7 @@ header{background:var(--panel);border-bottom:2px solid var(--ink);position:stick
       <div class="hud-right">
         <span class="mono" id="admin-email-display"></span>
         <a class="btn sm line" href="/" target="_blank">Student Site ↗</a>
-        <button class="btn sm danger" onclick="adminLogout()">Sign out</button>
+        <button class="btn sm danger" id="btn-admin-signout" onclick="adminLogout()">Sign out</button>
       </div>
     </div>
   </header>
@@ -427,9 +427,14 @@ async function adminLogout(){
   adminProfile = null;
   $("admin-app").hidden = true;
   $("login-screen").hidden = false;
-  setMsg(loginMsg, "Signed out.", true);
+  setMsg(loginMsg, "Signed out successfully.", true);
   say("Signed out.");
 }
+window.adminLogout = adminLogout;
+window.showTab = showTab;
+
+var soBtn = $("btn-admin-signout");
+if (soBtn) soBtn.addEventListener("click", adminLogout);
 
 /* ══════════════════════════════════════════════
    SIDEBAR & TABS

@@ -156,6 +156,7 @@ function go(name){
   if ((location.hash || "") === target) route();
   else location.hash = name;
 }
+window.go = go;
 
 function pad2(n){ return (n < 10 ? "0" : "") + n; }
 function fmt(t){ return t ? new Date(t).toLocaleString([], {dateStyle:"medium", timeStyle:"short"}) : "Date to be announced"; }
