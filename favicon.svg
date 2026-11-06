@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Retro Game Controller Favicon in Green -->
+  <defs>
+    <filter id="shadow" x="-5%" y="-5%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="0" flood-color="#14141A"/>
+    </filter>
+  </defs>
+
+  <!-- Background controller body: vibrant retro green with dark border -->
+  <path d="M 12 18 C 7 18 4 23 4 33 C 4 45 9 52 16 52 C 21 52 24 47 26 42 L 38 42 C 40 47 43 52 48 52 C 55 52 60 45 60 33 C 60 23 57 18 52 18 Z" 
+        fill="#2FB36F" stroke="#14141A" stroke-width="4" stroke-linejoin="round"/>
+
+  <!-- Top highlight ridge -->
+  <path d="M 15 22 Q 32 20 49 22" stroke="#8DE8B9" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+  <!-- D-Pad (Left) in dark ink -->
+  <!-- Vertical bar -->
+  <rect x="17" y="27" width="6" height="16" rx="1.5" fill="#14141A"/>
+  <!-- Horizontal bar -->
+  <rect x="12" y="32" width="16" height="6" rx="1.5" fill="#14141A"/>
+  <!-- Center dot -->
+  <rect x="18" y="33" width="4" height="4" fill="#3D404A"/>
+
+  <!-- Center Select / Start buttons -->
+  <rect x="27" y="35" width="4" height="2" rx="1" fill="#14141A" transform="rotate(-25 29 36)"/>
+  <rect x="33" y="35" width="4" height="2" rx="1" fill="#14141A" transform="rotate(-25 35 36)"/>
+
+  <!-- Action Buttons (Right) in Start.Here brand colors: Pink & Yellow -->
+  <!-- Top button (Yellow) -->
+  <circle cx="44" cy="30" r="3.5" fill="#F2BE3A" stroke="#14141A" stroke-width="2"/>
+  <!-- Right button (Pink) -->
+  <circle cx="51" cy="35" r="3.5" fill="#D4105A" stroke="#14141A" stroke-width="2"/>
+  <!-- Bottom button (Cyan) -->
+  <circle cx="44" cy="40" r="3.5" fill="#38B6D8" stroke="#14141A" stroke-width="2"/>
+  <!-- Left button (Sun Yellow) -->
+  <circle cx="37" cy="35" r="3.5" fill="#F6E3A8" stroke="#14141A" stroke-width="2"/>
+</svg>
