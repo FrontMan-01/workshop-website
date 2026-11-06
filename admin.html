@@ -457,7 +457,9 @@ function buildSidebar(){
     sbBtn("students", "👥", "All Students"),
     sbBtn("registrations", "📋", "Registrations"),
     h("div", {class:"section-label"}, "System"),
-    sbBtn("analytics", "📈", "Events Log")
+    sbBtn("analytics", "📈", "Events Log"),
+    h("div", {class:"section-label"}, "Admin Security"),
+    sbBtn("password", "🔑", "Change Password")
   );
 }
 
@@ -476,7 +478,8 @@ async function showTab(tab){
     competitions: tabCompetitions,
     students: tabStudents,
     registrations: tabRegistrations,
-    analytics: tabAnalytics
+    analytics: tabAnalytics,
+    password: tabChangePassword
   };
 
   (MAP[tab] || tabOverview)(main);
@@ -1039,6 +1042,56 @@ function tabAnalytics(main){
           );
         }))
       ) : h("p", {style:"color:var(--muted);margin-top:1rem"}, "No events logged yet.")
+  );
+}
+
+/* ══════════════════════════════════════════════
+   TAB: CHANGE PASSWORD
+══════════════════════════════════════════════ */
+function tabChangePassword(main){
+  var msg = msgBox();
+  var form = h("form", {class:"panel", style:"max-width:480px"},
+    h("h3", {style:"margin-bottom:.5rem"}, "Change Admin Password"),
+    h("p", {style:"color:var(--muted);font-size:.85rem;margin-bottom:1.2rem"},
+      "Account: <b>" + (adminUser ? adminUser.email : "Admin") + "</b>.<br>Type your new password below to update it directly in Supabase."
+    ),
+    fld("np-1", "New Password", {type:"password", required:true, minlength:"8", placeholder:"Min. 8 characters"}),
+    fld("np-2", "Confirm New Password", {type:"password", required:true, minlength:"8", placeholder:"Repeat new password"}),
+    h("button", {class:"btn", type:"submit", style:"margin-top:.4rem"}, "Update Password ▶"),
+    msg
+  );
+
+  form.addEventListener("submit", async function(ev){
+    ev.preventDefault();
+    var p1 = $("np-1").value;
+    var p2 = $("np-2").value;
+    if (p1 !== p2) {
+      return setMsg(msg, "Passwords do not match.", false);
+    }
+    if (p1.length < 8) {
+      return setMsg(msg, "Password must be at least 8 characters.", false);
+    }
+
+    setMsg(msg, "Updating password in Supabase...");
+    try {
+      var res = await sb.auth.updateUser({ password: p1 });
+      if (res.error) {
+        setMsg(msg, res.error.message, false);
+      } else {
+        $("np-1").value = "";
+        $("np-2").value = "";
+        setMsg(msg, "Password updated successfully in database! ✓", true);
+        say("Admin password updated!");
+      }
+    } catch(err) {
+      setMsg(msg, err.message, false);
+    }
+  });
+
+  main.append(
+    h("span", {class:"note"}, "admin security"),
+    h("h2", {style:"margin:.4rem 0 1.2rem"}, "Change Password"),
+    form
   );
 }
 

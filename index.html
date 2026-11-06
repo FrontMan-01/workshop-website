@@ -242,13 +242,15 @@ function hud(){
     return;
   }
   var name = (S.profile && S.profile.full_name) || S.user.email;
-  box.append(
+  var navItems = [
     h("span", {class:"mono"}, name),
     h("button", {class:"link", onclick:function(){ go("workshops"); }}, "Workshops"),
     h("button", {class:"link", onclick:function(){ go("account"); }}, "Account"),
     isAdmin() ? h("a", {class:"link", href:"admin.html", style:"color:var(--pink);font-weight:700"}, "Admin ↗") : null,
     h("button", {class:"link", onclick:signOut}, "Sign out")
-  );
+  ].filter(Boolean);
+
+  navItems.forEach(function(el){ box.appendChild(el); });
 }
 
 /* ══════════════════════════════
@@ -916,13 +918,21 @@ addEventListener("hashchange", route);
           S.user = setRes.data.session.user;
           if (type === "recovery") {
             S.needPw = true;
+            await refreshAuth();
+            hud();
+            history.replaceState(null, "", location.pathname + "#account");
+            accountView();
+            say("Recovery link verified! Please enter your new password below.", 5000);
+            return;
+          } else {
+            // Google OAuth sign-in or normal login: redirect directly to workshops level map!
+            await refreshAuth();
+            hud();
+            history.replaceState(null, "", location.pathname + "#workshops");
+            workshopsView();
+            say("Signed in successfully!");
+            return;
           }
-          await refreshAuth();
-          hud();
-          history.replaceState(null, "", location.pathname + "#account");
-          accountView();
-          say(type === "recovery" ? "Recovery link verified! Please enter your new password below." : "Signed in!", 5000);
-          return;
         }
       } catch(err) {
         console.warn("Session hash parse notice:", err);
