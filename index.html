@@ -426,7 +426,7 @@ function authView(mode){
       setMsg(msg, "Sending reset link...");
       if (!sb) return setMsg(msg, "Database connection not ready.", true);
       var res = await sb.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + "#account"
+        redirectTo: window.location.origin
       });
       if (res.error) {
         return setMsg(msg, res.error.message, true);
@@ -436,6 +436,44 @@ function authView(mode){
   }
 
   box.append(f);
+
+  if (mode !== "code") {
+    var googleBtn = h("button", {
+      class: "btn line",
+      type: "button",
+      style: "width:100%;margin-top:1rem;display:flex;align-items:center;justify-content:center;gap:.6rem;background:var(--panel)",
+      onclick: async function(){
+        if (!sb) return say("Database not connected.");
+        say("Connecting to Google...");
+        try {
+          var r = await sb.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+              redirectTo: window.location.origin
+            }
+          });
+          if (r.error) {
+            say("Google Sign-in: " + r.error.message, 4500);
+          }
+        } catch(e) {
+          say("Google Sign-in: " + e.message, 4500);
+        }
+      }
+    },
+      h("svg", {viewBox:"0 0 24 24", width:"18", height:"18"},
+        h("path", {fill:"#4285F4", d:"M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"}),
+        h("path", {fill:"#34A853", d:"M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"}),
+        h("path", {fill:"#FBBC05", d:"M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"}),
+        h("path", {fill:"#EA4335", d:"M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"})
+      ),
+      "Continue with Google"
+    );
+    box.append(
+      h("div", {class:"sep"}, "or"),
+      googleBtn
+    );
+  }
+
   app.replaceChildren(box);
 }
 
@@ -820,34 +858,98 @@ var ROUTES = {
 };
 
 function route(){
-  var hash = (location.hash || "").slice(1);
+  var rawHash = (location.hash || "").slice(1);
   window.scrollTo(0, 0);
 
-  if (hash.indexOf("workshop-") === 0) {
+  // Clean route name if extra tokens or hashes are present
+  var clean = rawHash.split("#")[0].split("&")[0];
+
+  if (clean.indexOf("workshop-") === 0) {
     if (!S.user) return go("auth");
-    workshopView(hash.slice(9));
+    workshopView(clean.slice(9));
     hud();
     return;
   }
 
-  if (hash === "auth" && S.user) return go("workshops");
+  if (clean === "account") {
+    if (!S.user) return go("auth");
+    accountView();
+    hud();
+    return;
+  }
+
+  if (clean === "auth" && S.user) return go("workshops");
 
   hud();
-  (ROUTES[hash] || welcome)();
+  (ROUTES[clean] || welcome)();
 }
 
 addEventListener("hashchange", route);
 
 // Initialize on page load
 (async function init(){
+  // 1. Check for error in hash
   if (location.hash && location.hash.includes("error_description")) {
-    var params = new URLSearchParams(location.hash.slice(1));
-    var desc = params.get("error_description");
+    var raw = location.hash.slice(1);
+    var pStart = raw.indexOf("error_description=");
+    var pms = new URLSearchParams(raw.substring(pStart));
+    var desc = pms.get("error_description");
     if (desc) {
       say(decodeURIComponent(desc.replace(/\+/g, " ")), 5000);
       history.replaceState(null, "", location.pathname);
     }
   }
+
+  // 2. Check for recovery / access_token in hash (handles double hash like #account#access_token=)
+  if (location.hash && location.hash.includes("access_token=") && sb) {
+    var rawH = location.hash;
+    var atPos = rawH.indexOf("access_token=");
+    var tokenPart = rawH.substring(atPos);
+    var tokenParams = new URLSearchParams(tokenPart);
+    var at = tokenParams.get("access_token");
+    var rt = tokenParams.get("refresh_token") || at;
+    var type = tokenParams.get("type");
+    if (at) {
+      try {
+        var setRes = await sb.auth.setSession({ access_token: at, refresh_token: rt });
+        if (setRes.data && setRes.data.session) {
+          S.user = setRes.data.session.user;
+          if (type === "recovery") {
+            S.needPw = true;
+          }
+          await refreshAuth();
+          hud();
+          history.replaceState(null, "", location.pathname + "#account");
+          accountView();
+          say(type === "recovery" ? "Recovery link verified! Please enter your new password below." : "Signed in!", 5000);
+          return;
+        }
+      } catch(err) {
+        console.warn("Session hash parse notice:", err);
+      }
+    }
+  }
+
+  // 3. Listen to auth changes (e.g. password recovery or OAuth sign-in)
+  if (sb) {
+    sb.auth.onAuthStateChange(async function(event, session){
+      if (event === "PASSWORD_RECOVERY") {
+        S.needPw = true;
+        if (session && session.user) S.user = session.user;
+        await refreshAuth();
+        hud();
+        go("account");
+        say("Recovery link verified. Please enter your new password below.", 5000);
+      } else if (event === "SIGNED_IN") {
+        if (!S.user && session && session.user) {
+          S.user = session.user;
+          await refreshAuth();
+          hud();
+        }
+      }
+    });
+  }
+
   await refreshAuth();
   hud();
   route();

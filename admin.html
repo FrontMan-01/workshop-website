@@ -1057,6 +1057,31 @@ function tabAnalytics(main){
       }
     }
 
+    if (location.hash && location.hash.includes("access_token=")) {
+      var rawH = location.hash;
+      var atPos = rawH.indexOf("access_token=");
+      var pms = new URLSearchParams(rawH.substring(atPos));
+      var at = pms.get("access_token");
+      var rt = pms.get("refresh_token") || at;
+      if (at) {
+        try {
+          await sb.auth.setSession({ access_token: at, refresh_token: rt });
+          history.replaceState(null, "", location.pathname);
+        } catch(e){}
+      }
+    }
+
+    sb.auth.onAuthStateChange(async function(event, session){
+      if (session && session.user && !adminUser) {
+        var pRes = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+        if (pRes.data && pRes.data.role === "admin") {
+          adminUser = session.user;
+          adminProfile = pRes.data;
+          await showAdminApp();
+        }
+      }
+    });
+
     var res = await sb.auth.getSession();
     var session = res.data && res.data.session;
     if (session && session.user) {
