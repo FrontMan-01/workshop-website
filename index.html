@@ -746,7 +746,11 @@ async function workshopView(wid){
         doubts = JSON.parse(localStorage.getItem("start_here_doubts_" + wid) || "[]");
       } catch(e){ doubts = []; }
     }
-    await refreshDoubts();
+    try {
+      await refreshDoubts();
+    } catch(e){
+      console.warn("Doubts load notice:", e);
+    }
 
     var activeSessionIdx = 0;
     // Auto-select first unfinished session if available
@@ -1012,7 +1016,11 @@ async function workshopView(wid){
             localStorage.setItem("start_here_doubts_" + wid, JSON.stringify(localDoubts));
           } catch(e){}
 
-          await refreshDoubts();
+          try {
+      await refreshDoubts();
+    } catch(e){
+      console.warn("Doubts load notice:", e);
+    }
           setMsg(doubtMsg, "Doubt submitted successfully! Mentors will review it.", false);
           say("Doubt uploaded! ✓");
           doubtQInput.value = "";
@@ -1079,7 +1087,11 @@ async function workshopView(wid){
         return compPanel(c, submissionsMap[c.id]);
       });
 
-      container.append(headerEl, winRow, treeWindow, sessionWindow, compWindows);
+      container.append(headerEl, winRow, treeWindow);
+      if (sessionWindow) container.append(sessionWindow);
+      compWindows.forEach(function(cw){ if (cw) container.append(cw); });
+
+      app.replaceChildren(container);
       updateProgress();
     }
 
