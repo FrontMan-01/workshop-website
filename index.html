@@ -1184,7 +1184,7 @@ async function workshopView(wid, subview, sessionParam){
             doubtQInput.value = "";
             doubtDInput.value = "";
             doubtImgInput.value = "";
-            setTimeout(function(){ renderWorkspace(); }, 600);
+            renderWorkspace();
           });
 
           var doubtsListEl = h("div", {style:"margin-top:1.2rem"},
