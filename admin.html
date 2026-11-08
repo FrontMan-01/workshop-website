@@ -135,11 +135,11 @@ header{background:var(--panel);border-bottom:2px solid var(--ink);position:stick
       <form class="panel" id="admin-login-form">
         <div class="fld">
           <label for="lg-u">Admin Email</label>
-          <input id="lg-u" type="email" required autocomplete="username" placeholder="admin@example.com" value="patelpriya17151@gmail.com">
+          <input id="lg-u" type="email" required autocomplete="username" placeholder="admin@example.com">
         </div>
         <div class="fld">
           <label for="lg-p">Password</label>
-          <input id="lg-p" type="password" required autocomplete="current-password" placeholder="••••••••••" value="StartHere@2026">
+          <input id="lg-p" type="password" required autocomplete="current-password" placeholder="••••••••••">
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-top:.6rem">
           <button class="btn" type="submit" style="min-width:140px">Sign in ▶</button>
@@ -147,12 +147,6 @@ header{background:var(--panel);border-bottom:2px solid var(--ink);position:stick
         </div>
         <p class="msg" id="login-msg"></p>
       </form>
-      <div class="notice info" id="default-creds-notice" style="margin-top:1rem;font-size:.83rem">
-        ⚡ <b>Connected to Supabase Database</b><br>
-        Admin email: <b>patelpriya17151@gmail.com</b><br>
-        Password: <b>StartHere@2026</b><br>
-        <span style="color:var(--muted)">Click <b>Sign in ▶</b> to access the Control Room immediately.</span>
-      </div>
     </div>
   </div>
 </div>
@@ -1165,6 +1159,9 @@ function tabChangePassword(main){
         adminUser = session.user;
         adminProfile = pRes.data;
         await showAdminApp();
+      } else {
+        setMsg(loginMsg, "Access denied: Account '" + session.user.email + "' is not an administrator. Redirecting to student home...", false);
+        setTimeout(function(){ window.location.href = "/"; }, 2000);
       }
     }
   } catch(e){
