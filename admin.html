@@ -505,6 +505,7 @@ function statCard(num, icon, label){
 }
 
 function tabOverview(main){
+  main.replaceChildren();
   var totalStudents = DB.students.length;
   var totalEnrollments = DB.enrollments.length;
   var pubWorkshops = DB.workshops.filter(function(w){ return w.published; }).length;
@@ -747,6 +748,7 @@ function tabSessions(main){
    TAB: LIVE LINKS
 ══════════════════════════════════════════════ */
 function tabLiveLinks(main){
+  main.replaceChildren();
   main.append(
     h("h2", {style:"margin-bottom:.6rem"}, "Live Links"),
     h("p", {style:"color:var(--muted);margin-bottom:1.4rem;font-size:.9rem"}, "Set the meeting URL per workshop in Supabase. Students see a 'Join live ▶' button when a URL is active."),
@@ -1036,6 +1038,7 @@ function tabRegistrations(main){
    TAB: ANALYTICS (Events Log)
 ══════════════════════════════════════════════ */
 function tabAnalytics(main){
+  main.replaceChildren();
   main.append(
     h("div", {class:"row", style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
       h("h2", null, "System Events Log"),
@@ -1105,6 +1108,7 @@ function tabChangePassword(main){
     }
   });
 
+  main.replaceChildren();
   main.append(
     h("span", {class:"note"}, "admin security"),
     h("h2", {style:"margin:.4rem 0 1.2rem"}, "Change Password"),
