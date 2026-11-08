@@ -60,15 +60,6 @@ header{background:var(--panel);border-bottom:2px solid var(--ink);position:stick
 .notice.info{border-color:var(--cyan)}
 .notice.ok{border-color:var(--green)}
 
-/* ── LOGIN SCREEN ── */
-#login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:3rem 1rem;box-sizing:border-box}
-.login-box{width:min(440px,100%);margin:0 auto}
-.login-box .brand{text-align:center;margin-bottom:1.5rem}
-.login-box .brand h2{margin-top:.3rem;font-size:2.2rem}
-.lock-icon{font-size:2.4rem;display:block;margin-bottom:.3rem}
-.tabs{display:flex;gap:.4rem;margin-bottom:1.2rem}
-.tabs button{flex:1;font:600 .78rem ui-monospace,Menlo,monospace;text-transform:uppercase;padding:.5rem;border:2px solid var(--ink);border-radius:8px;background:var(--bg);color:var(--ink);cursor:pointer;min-height:38px}
-.tabs button.on{background:var(--ink);color:var(--bg)}
 
 /* ── ADMIN LAYOUT ── */
 .admin-wrap{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 56px)}
@@ -122,33 +113,11 @@ header{background:var(--panel);border-bottom:2px solid var(--ink);position:stick
 </head>
 <body>
 
-<!-- ══════════════ LOGIN SCREEN ══════════════ -->
-<div id="login-screen">
-  <div class="login-box">
-    <div class="brand">
-      <span class="lock-icon">🔐</span>
-      <span class="note">admin only</span>
-      <h2>Control Room</h2>
-      <p class="mono" style="margin-top:.5rem">start.here real database admin</p>
-    </div>
-    <div id="login-area">
-      <form class="panel" id="admin-login-form">
-        <div class="fld">
-          <label for="lg-u">Admin Email</label>
-          <input id="lg-u" type="email" required autocomplete="username" placeholder="admin@example.com">
-        </div>
-        <div class="fld">
-          <label for="lg-p">Password</label>
-          <input id="lg-p" type="password" required autocomplete="current-password" placeholder="••••••••••">
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-top:.6rem">
-          <button class="btn" type="submit" style="min-width:140px">Sign in ▶</button>
-          <button class="link" type="button" id="btn-magic-link">Send Magic Link</button>
-        </div>
-        <p class="msg" id="login-msg"></p>
-      </form>
-    </div>
-  </div>
+<!-- ══════════════ VERIFYING ACCESS STATE ══════════════ -->
+<div id="auth-check-spinner" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:ui-monospace,Menlo,monospace;gap:.8rem;background:var(--bg)">
+  <span style="font-size:2.2rem">🔐</span>
+  <p style="font-weight:700;font-size:1.05rem;color:var(--ink);margin:0">Verifying administrator access...</p>
+  <span class="mono" style="font-size:.8rem;color:var(--muted)">Checking authorized credentials</span>
 </div>
 
 <!-- ══════════════ ADMIN APP (hidden until login) ══════════════ -->
@@ -335,80 +304,11 @@ async function loadDbData(){
 }
 
 /* ══════════════════════════════════════════════
-   LOGIN HANDLING
+   ADMIN CONTROL ROOM INITIALIZATION
 ══════════════════════════════════════════════ */
-var form = $("admin-login-form");
-var loginMsg = $("login-msg");
-var magicBtn = $("btn-magic-link");
-
-if (magicBtn) {
-  magicBtn.addEventListener("click", async function(){
-    var email = $("lg-u").value.trim();
-    if (!email) {
-      setMsg(loginMsg, "Please enter your admin email above first.", false);
-      return;
-    }
-    setMsg(loginMsg, "Sending magic link...");
-    try {
-      var res = await sb.auth.signInWithOtp({
-        email: email,
-        options: {
-          emailRedirectTo: window.location.origin + "/admin.html"
-        }
-      });
-      if (res.error) {
-        setMsg(loginMsg, res.error.message, false);
-      } else {
-        setMsg(loginMsg, "Magic link sent! Check your inbox.", true);
-      }
-    } catch(e) {
-      setMsg(loginMsg, e.message, false);
-    }
-  });
-}
-
-if (form) {
-  form.addEventListener("submit", async function(ev){
-    ev.preventDefault();
-    setMsg(loginMsg, "Authenticating with Supabase...");
-    var email = $("lg-u").value.trim();
-    var password = $("lg-p").value;
-
-    if (!sb) {
-      setMsg(loginMsg, "Supabase client not initialized. Check config.js.", false);
-      return;
-    }
-
-    try {
-      var res = await sb.auth.signInWithPassword({ email: email, password: password });
-      if (res.error) {
-        setMsg(loginMsg, res.error.message, false);
-        return;
-      }
-
-      var user = res.data.user;
-      var pRes = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle();
-      var profile = pRes.data;
-
-      if (!profile || profile.role !== "admin") {
-        setMsg(loginMsg, "Access denied: Account '" + email + "' is not an administrator.", false);
-        await sb.auth.signOut();
-        return;
-      }
-
-      adminUser = user;
-      adminProfile = profile;
-      setMsg(loginMsg, "Login successful!", true);
-      await showAdminApp();
-
-    } catch(err) {
-      setMsg(loginMsg, err.message || String(err), false);
-    }
-  });
-}
-
 async function showAdminApp(){
-  $("login-screen").hidden = true;
+  var spinner = $("auth-check-spinner");
+  if (spinner) spinner.remove();
   $("admin-app").hidden = false;
   $("admin-email-display").textContent = adminUser ? adminUser.email : "Admin";
 
@@ -423,10 +323,7 @@ async function adminLogout(){
   }
   adminUser = null;
   adminProfile = null;
-  $("admin-app").hidden = true;
-  $("login-screen").hidden = false;
-  setMsg(loginMsg, "Signed out successfully.", true);
-  say("Signed out.");
+  window.location.replace("/");
 }
 window.adminLogout = adminLogout;
 window.showTab = showTab;
@@ -1112,60 +1009,31 @@ function tabChangePassword(main){
 }
 
 /* ══════════════════════════════════════════════
-   INIT / CHECK EXISTING SESSION
+   INIT / ENFORCE ADMIN PRE-AUTHENTICATION
 ══════════════════════════════════════════════ */
 (async function init(){
-  if (!sb) return;
+  if (!sb) {
+    window.location.replace("/");
+    return;
+  }
   try {
-    if (location.hash && location.hash.includes("error_description")) {
-      var params = new URLSearchParams(location.hash.slice(1));
-      var desc = params.get("error_description");
-      if (desc) {
-        setMsg(loginMsg, decodeURIComponent(desc.replace(/\+/g, " ")), false);
-        history.replaceState(null, "", location.pathname);
-      }
-    }
-
-    if (location.hash && location.hash.includes("access_token=")) {
-      var rawH = location.hash;
-      var atPos = rawH.indexOf("access_token=");
-      var pms = new URLSearchParams(rawH.substring(atPos));
-      var at = pms.get("access_token");
-      var rt = pms.get("refresh_token") || at;
-      if (at) {
-        try {
-          await sb.auth.setSession({ access_token: at, refresh_token: rt });
-          history.replaceState(null, "", location.pathname);
-        } catch(e){}
-      }
-    }
-
-    sb.auth.onAuthStateChange(async function(event, session){
-      if (session && session.user && !adminUser) {
-        var pRes = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
-        if (pRes.data && pRes.data.role === "admin") {
-          adminUser = session.user;
-          adminProfile = pRes.data;
-          await showAdminApp();
-        }
-      }
-    });
-
     var res = await sb.auth.getSession();
     var session = res.data && res.data.session;
-    if (session && session.user) {
-      var pRes = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
-      if (pRes.data && pRes.data.role === "admin") {
-        adminUser = session.user;
-        adminProfile = pRes.data;
-        await showAdminApp();
-      } else {
-        setMsg(loginMsg, "Access denied: Account '" + session.user.email + "' is not an administrator. Redirecting to student home...", false);
-        setTimeout(function(){ window.location.href = "/"; }, 2000);
-      }
+    if (!session || !session.user) {
+      window.location.replace("/");
+      return;
+    }
+
+    var pRes = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+    if (pRes.data && pRes.data.role === "admin") {
+      adminUser = session.user;
+      adminProfile = pRes.data;
+      await showAdminApp();
+    } else {
+      window.location.replace("/");
     }
   } catch(e){
-    console.warn("Session check notice:", e);
+    window.location.replace("/");
   }
 })();
 
