@@ -248,6 +248,34 @@ create policy "admins manage submissions" on public.submissions
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- =====================================================================
+-- 3b. Session Doubts & Q&A
+-- =====================================================================
+create table public.doubts (
+  id uuid primary key default gen_random_uuid(),
+  workshop_id uuid not null references public.workshops (id) on delete cascade,
+  session_id uuid not null references public.sessions (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  student_name text not null default '',
+  question text not null,
+  details text,
+  screenshot_url text,
+  status text not null default 'open' check (status in ('open', 'answered', 'closed')),
+  answer text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.doubts enable row level security;
+
+create policy "enrolled see doubts" on public.doubts
+  for select to authenticated using (public.is_admin() or public.is_enrolled(workshop_id));
+
+create policy "submit own doubt" on public.doubts
+  for insert to authenticated with check ((select auth.uid()) = user_id and public.is_enrolled(workshop_id));
+
+create policy "admins manage doubts" on public.doubts
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- =====================================================================
 -- 4. Usage tracking and admin statistics
 -- =====================================================================
 create table public.events (
