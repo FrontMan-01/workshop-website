@@ -204,7 +204,7 @@ window.go = go;
 
 function pad2(n){ return (n < 10 ? "0" : "") + n; }
 function fmt(t){ return t ? new Date(t).toLocaleString([], {dateStyle:"medium", timeStyle:"short"}) : "Date to be announced"; }
-function isAdmin(){ return !!(S.profile && (S.profile.role === "admin" || (S.user && S.user.email === "priyapatel17151@gmail.com"))); }
+function isAdmin(){ return !!(S.profile && S.profile.role === "admin"); }
 
 function h(tag, props){
   var e = document.createElement(tag), k, kids = Array.prototype.slice.call(arguments, 2);

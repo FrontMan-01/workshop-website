@@ -1025,10 +1025,9 @@ function tabChangePassword(main){
     }
 
     var pRes = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
-    var isUserAdmin = (pRes.data && pRes.data.role === "admin") || (session.user && session.user.email === "priyapatel17151@gmail.com");
-    if (isUserAdmin) {
+    if (pRes.data && pRes.data.role === "admin") {
       adminUser = session.user;
-      adminProfile = pRes.data || { role: "admin", full_name: "Priya Patel" };
+      adminProfile = pRes.data;
       await showAdminApp();
     } else {
       window.location.replace("/");
