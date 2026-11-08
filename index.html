@@ -28,12 +28,18 @@ header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:2p
 .logo{display:flex;align-items:center;gap:.5rem;font:700 1.05rem "Pixelify Sans",monospace;background:none;border:0;cursor:pointer;color:inherit}
 .hud{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
 .start-btn{display:inline-flex;align-items:center;gap:.4rem;background:var(--pink);color:#fff;font:600 .78rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em;border:2px solid var(--ink);border-radius:10px;padding:.5rem .9rem;min-height:40px;box-shadow:3px 3px 0 var(--ink);cursor:pointer;transition:transform .12s,box-shadow .12s}
-.start-btn:hover{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.start-btn:hover{transform:translate(1px,1px);box-shadow:2px 2px 0 var(--ink)}
+.start-btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
 /* buttons */
-.btn{display:inline-flex;align-items:center;gap:.5rem;min-height:44px;padding:.6rem 1.2rem;border-radius:10px;background:var(--btn);color:var(--btn-ink);font:600 .82rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em;text-decoration:none;border:2px solid var(--ink);cursor:pointer;transition:transform .12s}
-.btn:hover{transform:translateY(-2px)}
-.btn.sm{min-height:34px;padding:.4rem .8rem;font-size:.72rem}
-.btn.line{background:transparent;color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:.5rem;min-height:44px;padding:.6rem 1.2rem;border-radius:10px;background:var(--btn);color:var(--btn-ink);font:600 .82rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em;text-decoration:none;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer;transition:transform .12s,box-shadow .12s}
+.btn:hover{transform:translate(1px,1px);box-shadow:2px 2px 0 var(--ink)}
+.btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+.btn.sm{min-height:34px;padding:.4rem .8rem;font-size:.72rem;box-shadow:2px 2px 0 var(--ink)}
+.btn.sm:hover{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink)}
+.btn.sm:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+.btn.line{background:transparent;color:var(--ink);box-shadow:none}
+.btn.line:hover{background:var(--panel);box-shadow:2px 2px 0 var(--ink)}
+.btn.line:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
 .btn.danger{background:#C0392B;color:#fff;border-color:#C0392B}
 .btn.success{background:var(--green);color:#fff;border-color:var(--green)}
 .btn.warn{background:var(--yellow);color:#14141A;border-color:var(--yshadow)}
@@ -52,7 +58,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap}
 .panel{background:var(--panel);border:3px solid var(--ink);border-radius:14px;box-shadow:5px 5px 0 var(--ink);padding:clamp(1rem,3vw,1.8rem)}
 .fld{display:grid;gap:.35rem;margin-bottom:1rem}
 .fld label{font:600 .75rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em}
-.fld input,.fld select,.fld textarea{font:inherit;color:var(--ink);background:var(--bg);border:2px solid var(--ink);border-radius:8px;padding:.6rem .8rem;min-height:44px;width:100%}
+.fld input,.fld select,.fld textarea{font:inherit;font-size:1rem;color:var(--ink);background:var(--bg);border:2px solid var(--ink);border-radius:8px;padding:.6rem .8rem;min-height:44px;width:100%}
 .fld textarea{min-height:80px;resize:vertical}
 .fld small{color:var(--muted);font-size:.78rem}
 .fld input[type=checkbox]{width:22px;height:22px;min-height:unset;accent-color:var(--pink);cursor:pointer}
@@ -660,6 +666,15 @@ async function workshopView(wid){
 
   try {
     var uid = S.user.id;
+    try {
+      await sb.from("enrollments").upsert({
+        user_id: uid,
+        workshop_id: wid
+      }, { onConflict: "user_id,workshop_id", ignoreDuplicates: true });
+    } catch(e){
+      console.warn("Enrollment ensure notice:", e);
+    }
+
     var res = await Promise.all([
       sb.from("workshops").select("*").eq("id", wid).maybeSingle(),
       sb.from("workshop_links").select("live_url").eq("workshop_id", wid).maybeSingle(),

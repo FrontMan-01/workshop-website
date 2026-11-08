@@ -7,6 +7,7 @@
 -- =====================================================================
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
+  email text,
   full_name text not null default '',
   phone text,
   year text,
@@ -31,14 +32,18 @@ create or replace function public.handle_new_user()
 returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
-  insert into public.profiles (id, full_name, phone, year, why)
+  insert into public.profiles (id, email, full_name, phone, year, why)
   values (
     new.id,
+    new.email,
     coalesce(new.raw_user_meta_data ->> 'full_name', ''),
     new.raw_user_meta_data ->> 'phone',
     new.raw_user_meta_data ->> 'year',
     new.raw_user_meta_data ->> 'why'
-  );
+  )
+  on conflict (id) do update set
+    email = excluded.email,
+    full_name = case when public.profiles.full_name = '' then excluded.full_name else public.profiles.full_name end;
   return new;
 end;
 $$;
@@ -58,7 +63,32 @@ create policy "update own profile"
   using ((select auth.uid()) = id)
   with check ((select auth.uid()) = id);
 
--- Students may edit only these columns. They can never change their own role.
+-- Secure RPC function for admins to promote/demote roles without giving direct update grant on role column
+create or replace function public.set_user_role(target_user uuid, new_role text)
+returns json
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Unauthorized: Only admins can manage roles';
+  end if;
+
+  if new_role not in ('student', 'admin') then
+    raise exception 'Invalid role: must be student or admin';
+  end if;
+
+  -- Prevent the last admin from demoting themselves
+  if target_user = (select auth.uid()) and new_role = 'student' then
+    if (select count(*) from public.profiles where role = 'admin') <= 1 then
+      raise exception 'Action prevented: Cannot remove the last administrator';
+    end if;
+  end if;
+
+  update public.profiles set role = new_role where id = target_user;
+  return json_build_object('success', true, 'user_id', target_user, 'role', new_role);
+end;
+$$;
+
+-- Students may edit only these columns. They can never change their own role directly.
 revoke insert, update, delete on public.profiles from authenticated;
 grant update (full_name, phone, year, why) on public.profiles to authenticated;
 

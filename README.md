@@ -1,47 +1,78 @@
 # start.here
 
-Free student workshop platform — level-based learning with live sessions, recordings, and competitions.
+Free student workshop platform — gamified, level-based tech learning with live sessions, recordings, and competitions.
 
-## Project structure
+## Project Structure
 
 ```
-workshop website/
-├── index.html              ← Student-facing site (open this in browser)
-├── admin.html              ← Admin dashboard (separate login, deploy privately)
-│
-└── supabase-ready/         ← For DB integration later (teammate's work)
-    ├── index.html           ← Supabase-connected version of the student site
-    ├── config.js            ← Supabase URL + anon key (fill before use)
-    ├── schema.sql           ← Run this in Supabase SQL Editor to create tables
-    └── README.md            ← Full setup instructions for Supabase
+workshop-website/
+├── index.html              ← Student-facing portal (SPA with hash routing)
+├── admin.html              ← Admin dashboard (role-gated: profiles.role = 'admin')
+├── config.js               ← Supabase URL & anonymous public key
+├── favicon.svg             ← Retro game controller SVG favicon
+└── supabase-ready/
+    ├── schema.sql          ← PostgreSQL schema, RLS policies, triggers, and starter Level 1
+    ├── config.js           ← Template config for new projects
+    └── README.md           ← Detailed Supabase setup and SMTP guidelines
 ```
 
-## Quick start
+## Quick Start
 
-1. **Student site:** Double-click `index.html` — works offline, no server needed.
-2. **Admin dashboard:** Double-click `admin.html` — default login: `admin` / `StartHere@2026`.
-3. **Change admin credentials** in Settings after first login.
+### 1. Configure Supabase Credentials
+Ensure `config.js` contains your Supabase project URL and anonymous publishable key:
 
-## How it works (no database)
+```javascript
+window.APP_CONFIG = {
+  SUPABASE_URL: "https://your-project.supabase.co",
+  SUPABASE_KEY: "your-anon-key"
+};
+```
 
-- Admin saves workshops, sessions, live links, competitions → **localStorage**
-- Student site reads from the same localStorage → displays the content
-- Student progress, enrollments, submissions → saved to localStorage
-- Both pages auto-refresh when you switch tabs
+### 2. Set Up the Database
+In your Supabase project dashboard:
+1. Open **SQL Editor** -> **New query**.
+2. Paste the contents of `supabase-ready/schema.sql` and click **Run**.
+3. Under **Authentication** -> **URL Configuration**, set the **Site URL** to your hosting domain (or `http://localhost:8000` for local development).
 
-## For the database teammate
+### 3. Run Locally
+Because the application communicates with Supabase over HTTPS and handles OAuth / recovery hash redirects, serve it with any local static HTTP server:
 
-Everything you need is in the `supabase-ready/` folder. See `supabase-ready/README.md` for full instructions:
+```bash
+# Using Python
+python3 -m http.server 8000
 
-1. Create a Supabase project
-2. Run `schema.sql` in the SQL Editor
-3. Fill in `config.js` with your project URL and anon key
-4. Set the Site URL in Supabase Auth settings
-5. Replace the root `index.html` with `supabase-ready/index.html` (and update it to match any UI changes made in the root version)
+# Or using Bun / Node
+npx serve .
+```
+
+- Open `http://localhost:8000/` for the Student Portal.
+- Open `http://localhost:8000/admin.html` for the Admin Dashboard.
+
+### 4. Create Your Administrator Account
+1. Open the Student Portal (`http://localhost:8000/#auth`) and register an account under **Create account**.
+2. In the Supabase **SQL Editor**, promote your user to administrator:
+   ```sql
+   select public.set_user_role(
+     (select id from auth.users where email = 'your-email@example.com'),
+     'admin'
+   );
+   ```
+   *(Alternatively: `update public.profiles set role = 'admin' where id = (select id from auth.users where email = 'your-email@example.com');`)*
+3. Navigate to `admin.html` and sign in with your email and password (or magic link).
+
+## Key Features & Security
+
+- **Gamified Level Progression:** Workshops unlock progressively (Level 1, Level 2, ...). Students track completed sessions with real-time progress bars.
+- **Row Level Security (RLS):**
+  - Students can only view and update their own profiles, progress, and competition submissions.
+  - Workshop live meeting links (`workshop_links`) and session recordings are strictly restricted to enrolled students.
+  - Administrative endpoints, events telemetry, and student rosters are restricted to users with `role = 'admin'`.
+- **Dynamic Competitions:** Form fields are stored as JSONB schemas so admins can customize project submission questions on the fly.
+- **Zero-Build Architecture:** Pure HTML5, CSS3, and JavaScript — no build steps, node_modules, or bundlers required.
 
 ## Deployment
 
-| File | Deploy to | Who accesses it |
-|------|-----------|-----------------|
-| `index.html` | Public URL (Vercel / Netlify / GitHub Pages) | Students |
-| `admin.html` | Private / secret URL (separate deployment) | Only admin |
+| File | Deploy to | Access Control |
+|------|-----------|----------------|
+| `index.html` | Public URL (GitHub Pages / Vercel / Netlify) | Public (All Students) |
+| `admin.html` | Private / internal deployment or protected route | Administrators Only (`role = 'admin'`) |

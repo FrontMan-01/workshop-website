@@ -29,9 +29,12 @@ header{background:var(--panel);border-bottom:2px solid var(--ink);position:stick
 .hud-right{display:flex;align-items:center;gap:.8rem}
 
 /* ── BUTTONS ── */
-.btn{display:inline-flex;align-items:center;gap:.45rem;min-height:42px;padding:.55rem 1.1rem;border-radius:10px;background:var(--btn);color:var(--btn-ink);font:600 .8rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em;border:2px solid var(--ink);cursor:pointer;transition:transform .12s}
-.btn:hover{transform:translateY(-2px)}
-.btn.sm{min-height:34px;padding:.35rem .75rem;font-size:.7rem}
+.btn{display:inline-flex;align-items:center;gap:.45rem;min-height:42px;padding:.55rem 1.1rem;border-radius:10px;background:var(--btn);color:var(--btn-ink);font:600 .8rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer;transition:transform .12s,box-shadow .12s}
+.btn:hover{transform:translate(1px,1px);box-shadow:2px 2px 0 var(--ink)}
+.btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+.btn.sm{min-height:34px;padding:.35rem .75rem;font-size:.7rem;box-shadow:2px 2px 0 var(--ink)}
+.btn.sm:hover{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink)}
+.btn.sm:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
 .btn.line{background:transparent;color:var(--ink)}
 .btn.danger{background:#C0392B;color:#fff;border-color:#C0392B}
 .btn.success{background:var(--green);color:#fff;border-color:var(--green)}
@@ -42,7 +45,7 @@ header{background:var(--panel);border-bottom:2px solid var(--ink);position:stick
 /* ── FORMS ── */
 .fld{display:grid;gap:.25rem;margin-bottom:.75rem}
 .fld label{font:600 .72rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.04em}
-.fld input,.fld select,.fld textarea{font:inherit;color:var(--ink);background:var(--bg);border:2px solid var(--ink);border-radius:8px;padding:.5rem .75rem;min-height:38px;width:100%}
+.fld input,.fld select,.fld textarea{font:inherit;font-size:1rem;color:var(--ink);background:var(--bg);border:2px solid var(--ink);border-radius:8px;padding:.5rem .75rem;min-height:38px;width:100%}
 .fld textarea{min-height:80px;resize:vertical}
 .fld small{color:var(--muted);font-size:.78rem}
 .fld input[type=checkbox]{width:20px;height:20px;min-height:unset;accent-color:var(--pink);cursor:pointer}
@@ -314,7 +317,7 @@ async function loadDbData(){
         phone: p.phone || "",
         year: p.year || "",
         why: p.why || "",
-        role: p.role || "user",
+        role: p.role || "student",
         joined: p.created_at,
         enrolled: enrolledWids
       };
@@ -958,14 +961,22 @@ function tabStudents(main){
             h("td", null, h("div", {class:"row"},
               stu.role !== "admin"
                 ? h("button", {class:"btn sm warn", onclick:async function(){
-                    var res = await sb.from("profiles").update({ role:"admin" }).eq("id", stu.id);
+                    var res = await sb.rpc("set_user_role", { target_user: stu.id, new_role: "admin" });
+                    if (res.error) {
+                      // Fallback to direct table update if RPC not applied yet
+                      res = await sb.from("profiles").update({ role:"admin" }).eq("id", stu.id);
+                    }
                     if (res.error) { say(res.error.message); return; }
                     stu.role = "admin"; render(); say("Promoted to admin: " + stu.full_name);
                   }}, "Make Admin")
                 : h("button", {class:"btn sm line", onclick:async function(){
-                    var res = await sb.from("profiles").update({ role:"user" }).eq("id", stu.id);
+                    var res = await sb.rpc("set_user_role", { target_user: stu.id, new_role: "student" });
+                    if (res.error) {
+                      // Fallback to direct table update if RPC not applied yet
+                      res = await sb.from("profiles").update({ role:"student" }).eq("id", stu.id);
+                    }
                     if (res.error) { say(res.error.message); return; }
-                    stu.role = "user"; render(); say("Removed admin: " + stu.full_name);
+                    stu.role = "student"; render(); say("Removed admin: " + stu.full_name);
                   }}, "Remove Admin")
             ))
           );
