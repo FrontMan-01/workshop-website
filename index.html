@@ -142,6 +142,16 @@ mark{border-radius:4px;padding:0 .2em;color:inherit}
 .doubt-item{background:var(--bg);border:2px solid var(--ink);border-radius:10px;padding:.85rem;margin-top:.8rem;display:grid;gap:.35rem}
 .subtopics-tags{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem}
 .subtopics-tags span{font:500 .72rem ui-monospace,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:.15rem .45rem;color:var(--muted)}
+/* ── WORKSHOP SUB-NAV BAR & SUBPAGES ── */
+.workshop-nav{display:flex;gap:.5rem;background:var(--panel);border:3px solid var(--ink);border-radius:14px;padding:.5rem;box-shadow:4px 4px 0 var(--ink);margin:1.4rem 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.workshop-nav-btn{display:inline-flex;align-items:center;gap:.45rem;font:600 .78rem ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.03em;padding:.55rem .95rem;border:2px solid transparent;border-radius:8px;background:transparent;color:var(--ink);cursor:pointer;white-space:nowrap;transition:all .12s}
+.workshop-nav-btn:hover{background:var(--bg);border-color:var(--ink)}
+.workshop-nav-btn.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.session-pills{display:flex;gap:.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:.4rem;margin:1rem 0}
+.session-pill{font:600 .75rem ui-monospace,Menlo,monospace;text-transform:uppercase;padding:.45rem .85rem;border:2px solid var(--ink);border-radius:8px;background:var(--panel);color:var(--ink);cursor:pointer;white-space:nowrap;transition:transform .12s}
+.session-pill:hover{transform:translateY(-1px)}
+.session-pill.on{background:var(--pink);color:#fff;border-color:var(--ink);box-shadow:2px 2px 0 var(--ink)}
+.session-pill.done{border-color:var(--green)}
 </style>
 </head>
 <body>
@@ -683,85 +693,126 @@ function compPanel(c, mine){
   return p;
 }
 
-async function workshopView(wid){
+var _workshopCache = null;
+
+async function workshopView(wid, subview, sessionParam){
   if (!S.user) return go("auth");
 
-  app.replaceChildren(h("div", {class:"vwrap"},
-    h("span", {class:"note"}, "loading level..."),
-    h("h2", {style:"margin:1rem 0"}, "Loading syllabus...")
-  ));
+  subview = subview || "tree";
+  var uid = S.user.id;
+
+  var cached = (_workshopCache && _workshopCache.wid === wid && _workshopCache.uid === uid) ? _workshopCache : null;
+
+  if (!cached) {
+    app.replaceChildren(h("div", {class:"vwrap"},
+      h("span", {class:"note"}, "loading level..."),
+      h("h2", {style:"margin:1rem 0"}, "Loading syllabus...")
+    ));
+  }
 
   try {
-    var uid = S.user.id;
-    try {
-      await sb.from("enrollments").upsert({
-        user_id: uid,
-        workshop_id: wid
-      }, { onConflict: "user_id,workshop_id", ignoreDuplicates: true });
-    } catch(e){
-      console.warn("Enrollment ensure notice:", e);
-    }
+    if (!cached) {
+      try {
+        await sb.from("enrollments").upsert({
+          user_id: uid,
+          workshop_id: wid
+        }, { onConflict: "user_id,workshop_id", ignoreDuplicates: true });
+      } catch(e){
+        console.warn("Enrollment ensure notice:", e);
+      }
 
-    var res = await Promise.all([
-      sb.from("workshops").select("*").eq("id", wid).maybeSingle(),
-      sb.from("workshop_links").select("live_url").eq("workshop_id", wid).maybeSingle(),
-      sb.from("sessions").select("*").eq("workshop_id", wid).order("position"),
-      sb.from("session_progress").select("session_id").eq("user_id", uid),
-      sb.from("competitions").select("*").eq("workshop_id", wid).order("created_at")
-    ]);
+      var res = await Promise.all([
+        sb.from("workshops").select("*").eq("id", wid).maybeSingle(),
+        sb.from("workshop_links").select("live_url").eq("workshop_id", wid).maybeSingle(),
+        sb.from("sessions").select("*").eq("workshop_id", wid).order("position"),
+        sb.from("session_progress").select("session_id").eq("user_id", uid),
+        sb.from("competitions").select("*").eq("workshop_id", wid).order("created_at")
+      ]);
 
-    for (var i = 0; i < res.length; i++) {
-      if (res[i].error) throw res[i].error;
-    }
+      for (var i = 0; i < res.length; i++) {
+        if (res[i].error) throw res[i].error;
+      }
 
-    var w = res[0].data;
-    if (!w) {
-      app.replaceChildren(h("div", {class:"vwrap"}, h("h2", null, "Workshop not found"), h("button", {class:"btn sm", onclick:function(){ go("workshops"); }}, "← Back to levels")));
-      return;
-    }
+      var w = res[0].data;
+      if (!w) {
+        app.replaceChildren(h("div", {class:"vwrap"}, h("h2", null, "Workshop not found"), h("button", {class:"btn sm", onclick:function(){ go("workshops"); }}, "← Back to levels")));
+        return;
+      }
 
-    var live = res[1].data ? res[1].data.live_url : "";
-    var sessions = res[2].data || [];
-    var doneMap = {};
-    (res[3].data || []).forEach(function(p){ doneMap[p.session_id] = true; });
+      var live = res[1].data ? res[1].data.live_url : "";
+      var sessions = res[2].data || [];
+      var doneMap = {};
+      (res[3].data || []).forEach(function(p){ doneMap[p.session_id] = true; });
 
-    var comps = res[4].data || [];
-    var submissionsMap = {};
-    if (comps.length > 0) {
-      var subRes = await sb.from("submissions").select("*").eq("user_id", uid).in("competition_id", comps.map(function(c){ return c.id; }));
-      (subRes.data || []).forEach(function(s){ submissionsMap[s.competition_id] = s; });
-    }
+      var comps = res[4].data || [];
+      var submissionsMap = {};
+      if (comps.length > 0) {
+        var subRes = await sb.from("submissions").select("*").eq("user_id", uid).in("competition_id", comps.map(function(c){ return c.id; }));
+        (subRes.data || []).forEach(function(s){ submissionsMap[s.competition_id] = s; });
+      }
 
-    // Load Doubts from Supabase or localStorage fallback
-    var doubts = [];
-    async function refreshDoubts(){
+      var doubts = [];
       try {
         var dRes = await sb.from("doubts").select("*").eq("workshop_id", wid).order("created_at", { ascending: false });
         if (!dRes.error && dRes.data) {
           doubts = dRes.data;
+        } else {
+          doubts = JSON.parse(localStorage.getItem("start_here_doubts_" + wid) || "[]");
+        }
+      } catch(e){
+        try { doubts = JSON.parse(localStorage.getItem("start_here_doubts_" + wid) || "[]"); } catch(err2){ doubts = []; }
+      }
+
+      cached = {
+        wid: wid,
+        uid: uid,
+        w: w,
+        live: live,
+        sessions: sessions,
+        doneMap: doneMap,
+        comps: comps,
+        submissionsMap: submissionsMap,
+        doubts: doubts
+      };
+      _workshopCache = cached;
+    }
+
+    var w = cached.w;
+    var live = cached.live;
+    var sessions = cached.sessions;
+    var doneMap = cached.doneMap;
+    var comps = cached.comps;
+    var submissionsMap = cached.submissionsMap;
+    var doubts = cached.doubts;
+
+    async function refreshDoubts(){
+      try {
+        var dRes = await sb.from("doubts").select("*").eq("workshop_id", wid).order("created_at", { ascending: false });
+        if (!dRes.error && dRes.data) {
+          cached.doubts = dRes.data;
+          doubts = cached.doubts;
           return;
         }
       } catch(e){}
       try {
-        doubts = JSON.parse(localStorage.getItem("start_here_doubts_" + wid) || "[]");
-      } catch(e){ doubts = []; }
-    }
-    try {
-      await refreshDoubts();
-    } catch(e){
-      console.warn("Doubts load notice:", e);
+        cached.doubts = JSON.parse(localStorage.getItem("start_here_doubts_" + wid) || "[]");
+        doubts = cached.doubts;
+      } catch(e){ cached.doubts = []; doubts = []; }
     }
 
+    // Determine active session index
     var activeSessionIdx = 0;
-    // Auto-select first unfinished session if available
-    for (var sIdx = 0; sIdx < sessions.length; sIdx++) {
-      if (!doneMap[sessions[sIdx].id]) {
-        activeSessionIdx = sIdx;
-        break;
+    if (typeof sessionParam === "number" && sessionParam >= 1 && sessionParam <= sessions.length) {
+      activeSessionIdx = sessionParam - 1;
+    } else {
+      for (var sIdx = 0; sIdx < sessions.length; sIdx++) {
+        if (!doneMap[sessions[sIdx].id]) {
+          activeSessionIdx = sIdx;
+          break;
+        }
       }
     }
 
-    var activeTab = "overview"; // "overview" | "notes" | "doubts"
     var container = h("div", {class:"vwrap"});
     var progressPct = h("span", {class:"mono"});
     var progressBar = h("i", {style:"width:0"});
@@ -802,10 +853,28 @@ async function workshopView(wid){
       }
     }
 
+    function renderSessionPills(targetSubview){
+      var pills = sessions.map(function(s, idx){
+        var isDone = !!doneMap[s.id];
+        var isCurrent = (idx === activeSessionIdx);
+        var pillClass = "session-pill" + (isCurrent ? " on" : "") + (isDone ? " done" : "");
+        var sNum = pad2(idx + 1);
+        var label = (isDone ? "✓ " : "") + "Session " + sNum + (isCurrent ? " ▶" : "");
+        return h("button", {
+          type:"button",
+          class: pillClass,
+          onclick: function(){
+            location.hash = "workshop-" + wid + "/" + targetSubview + "/" + (idx + 1);
+          }
+        }, label);
+      });
+      return h("div", {class:"session-pills"}, pills);
+    }
+
     function renderWorkspace(){
       container.replaceChildren();
 
-      // Header Section
+      // Top Breadcrumb & Level Header
       var headerEl = h("div", null,
         h("button", {class:"back", onclick:function(){ go("workshops"); }}, "← All levels"), h("br"),
         h("span", {class:"note"}, "level " + pad2(w.level_no) + " · quest map"),
@@ -815,282 +884,400 @@ async function workshopView(wid){
         progressPct
       );
 
-      // Windows Row: Broadcast & Schedule
-      var liveWindow = winCard("broadcast.exe", false, [
-        h("div", {style:"display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem"},
-          live ? h("span", {class:"pulse-dot"}) : null,
-          h("b", null, live ? "LIVE BROADCAST ACTIVE" : "BROADCAST STANDBY")
-        ),
-        h("p", {style:"font-size:.9rem;color:var(--muted)"},
-          live ? "A live workshop session is broadcasting right now. Tap below to join." : "Meeting link activates here right before each live class."
-        ),
-        live ? h("p", {style:"margin-top:.8rem"}, h("a", {class:"btn success", href:live, target:"_blank", rel:"noopener"}, "Join Live Stream ▶")) : null
-      ]);
+      // Top Task Navigation Bar
+      var sNum = activeSessionIdx + 1;
+      var sessionDoubts = doubts.filter(function(d){ return d.session_id === (sessions[activeSessionIdx] && sessions[activeSessionIdx].id); });
+      var navItems = [
+        { id:"tree", label:"🗺️ Roadmap", hash:"#workshop-" + wid + "/tree" },
+        { id:"session", label:"💻 Session " + pad2(sNum), hash:"#workshop-" + wid + "/session/" + sNum },
+        { id:"notes", label:"📝 Study Notes", hash:"#workshop-" + wid + "/notes/" + sNum },
+        { id:"doubts", label:"❓ Doubts (" + sessionDoubts.length + ")", hash:"#workshop-" + wid + "/doubts/" + sNum },
+        { id:"live", label:(live ? "🔴 Live Broadcast" : "📺 Live Stream"), hash:"#workshop-" + wid + "/live" }
+      ];
+      if (comps.length > 0) {
+        navItems.push({ id:"challenge", label:"🏆 Challenge", hash:"#workshop-" + wid + "/challenge" });
+      }
 
-      var scheduleWindow = winCard("schedule.exe", false, [
-        h("b", null, "Workshop Dates & Roadmap"),
-        h("p", {style:"font-size:.9rem;color:var(--muted);margin-top:.4rem"}, w.dates_text || "Dates to be announced soon."),
-        h("span", {class:"mono", style:"margin-top:.6rem;display:inline-block"}, sessions.length + " nodes in this progression tree")
-      ]);
+      var navBar = h("div", {class:"workshop-nav"},
+        navItems.map(function(item){
+          var isCurrent = (subview === item.id);
+          return h("button", {
+            type:"button",
+            class:"workshop-nav-btn" + (isCurrent ? " on" : ""),
+            onclick: function(){
+              location.hash = item.hash;
+            }
+          }, item.label);
+        })
+      );
 
-      var winRow = h("div", {class:"win-row"}, liveWindow, scheduleWindow);
-
-      // Skill Tree / Graph Structure Window
-      var treeNodes = sessions.map(function(s, idx){
-        var isDone = !!doneMap[s.id];
-        var isCurrent = (idx === activeSessionIdx);
-        var nodeClass = "tree-node" + (isDone ? " done" : isCurrent ? " active" : "");
-
-        var subtopics = (s.description || "").split(/[·,\n]/).map(function(t){ return t.trim(); }).filter(Boolean);
-
-        var nodeEl = h("div", {
-          class: nodeClass,
-          onclick: function(){
-            activeSessionIdx = idx;
-            renderWorkspace();
-            var target = document.getElementById("active-session-window");
-            if (target) target.scrollIntoView({ behavior:"smooth" });
-          }
-        },
-          h("div", {class:"tree-node-top"},
-            h("span", {class:"mono"}, "NODE 0" + (idx + 1)),
-            h("span", {class:"chip " + (isDone ? "done" : isCurrent ? "active" : "locked")},
-              isDone ? "DONE ✓" : isCurrent ? "CURRENT ▶" : "UNLOCKED"
-            )
-          ),
-          h("b", {style:"font-size:1.1rem"}, (idx + 1) + ". " + s.title),
-          subtopics.length ? h("div", {class:"subtopics-tags"}, subtopics.slice(0, 4).map(function(t){ return h("span", null, t); })) : null,
-          h("div", {style:"display:flex;justify-content:space-between;align-items:center;margin-top:.3rem"},
-            h("span", {class:"mono"}, fmt(s.starts_at)),
-            h("span", {class:"link", style:"font-size:.72rem"}, isCurrent ? "Active Workspace ▼" : "Open Window ↗")
-          )
-        );
-        return nodeEl;
-      });
-
-      var treeWindow = winCard("skill_tree.exe · Level Progression", false, [
-        h("p", {class:"mono", style:"margin-bottom:1rem"}, "Interactive learning path — select any session node below to open its dedicated workspace:"),
-        sessions.length ? h("div", {class:"tree-track"}, treeNodes) : h("p", {style:"color:var(--muted)"}, "Sessions coming soon.")
-      ]);
-
-      // Active Session Workspace Window
       var curr = sessions[activeSessionIdx] || null;
-      var sessionWindow = null;
+      var subpageContent = null;
 
-      if (curr) {
-        var isCurrDone = !!doneMap[curr.id];
-        var sessionDoubts = doubts.filter(function(d){ return d.session_id === curr.id; });
-
-        // Tab Selector Buttons
-        var tabBtnOverview = h("button", {
-          type:"button",
-          class: activeTab === "overview" ? "on" : "",
-          onclick: function(){ activeTab = "overview"; renderWorkspace(); }
-        }, "📺 Stream & Overview");
-
-        var tabBtnNotes = h("button", {
-          type:"button",
-          class: activeTab === "notes" ? "on" : "",
-          onclick: function(){ activeTab = "notes"; renderWorkspace(); }
-        }, "📝 Notes & Cheatsheet");
-
-        var tabBtnDoubts = h("button", {
-          type:"button",
-          class: activeTab === "doubts" ? "on" : "",
-          onclick: function(){ activeTab = "doubts"; renderWorkspace(); }
-        }, "❓ Doubts (" + sessionDoubts.length + ")");
-
-        var tabsBar = h("div", {class:"session-win-tabs"}, tabBtnOverview, tabBtnNotes, tabBtnDoubts);
-
-        // Tab 1: Overview
-        var tabOverviewContent = h("div", {style:"padding:1.2rem;display:grid;gap:1rem"},
-          h("div", null,
-            h("span", {class:"mono"}, "SESSION 0" + (activeSessionIdx + 1) + " OF 0" + sessions.length),
-            h("h3", {style:"margin:.3rem 0 .6rem"}, curr.title),
-            curr.description ? h("p", {style:"font-size:.95rem;line-height:1.6"}, curr.description) : null,
-            h("span", {class:"mono", style:"display:block;margin-top:.4rem"}, fmt(curr.starts_at))
-          ),
-          h("div", {class:"panel", style:"padding:1rem;background:var(--bg)"},
-            h("h4", {style:"margin-bottom:.4rem"}, "Recording & Replay"),
-            curr.recording_url
-              ? h("div", null,
-                  h("p", {style:"font-size:.88rem;color:var(--muted);margin-bottom:.6rem"}, "Unlisted session video is available for enrolled students:"),
-                  h("a", {class:"btn", href:curr.recording_url, target:"_blank", rel:"noopener"}, "Watch Recording ↗")
-                )
-              : h("p", {style:"font-size:.88rem;color:var(--muted)"}, "Recording link will be posted here as soon as this live class wraps up.")
-          ),
-          h("div", {style:"display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding-top:.5rem"},
-            h("button", {
-              class: "btn " + (isCurrDone ? "success" : ""),
-              onclick: function(){ toggleSessionProgress(curr); }
-            }, isCurrDone ? "✓ Session Completed" : "◯ Mark Session Complete ▶"),
-            h("span", {class:"mono"}, isCurrDone ? "Nice work! Node verified on skill tree." : "Click when you have finished this session.")
-          )
-        );
-
-        // Tab 2: Notes & Cheatsheet
-        var storageKey = "start_here_notes_" + uid + "_" + curr.id;
-        var savedNotes = localStorage.getItem(storageKey) || "";
-        var noteStatus = h("span", {class:"mono", style:"color:var(--green);font-size:.75rem"}, "✓ Ready");
-
-        var notesArea = h("textarea", {
-          class:"notes-pad",
-          placeholder:"Write your personal session notes, key commands, code snippets, or project ideas here...\n(Automatically saved on this device as you type)",
-          oninput: function(ev){
-            localStorage.setItem(storageKey, ev.target.value);
-            noteStatus.textContent = "✓ Auto-saved locally (" + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"}) + ")";
-          }
-        }, savedNotes);
-
-        var tabNotesContent = h("div", {style:"padding:1.2rem;display:grid;gap:1rem"},
-          h("div", null,
-            h("h3", null, "Session Key Takeaways & Cheat Sheet"),
-            h("p", {style:"color:var(--muted);font-size:.88rem;margin-top:.2rem"}, "Quick reference points and concepts covered in " + curr.title + ".")
-          ),
-          h("div", {class:"panel", style:"padding:1rem;background:var(--bg)"},
-            h("ul", {style:"margin:0;padding-left:1.2rem;line-height:1.7;font-size:.9rem"},
-              (curr.description || "Core concepts and exercises").split(/[·,\n]/).map(function(item){
-                var clean = item.trim();
-                return clean ? h("li", null, clean) : null;
-              }).filter(Boolean)
-            )
-          ),
-          h("div", null,
-            h("div", {style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem"},
-              h("h4", null, "Your Personal Study Scratchpad"),
-              noteStatus
+      // ──────────────────────────────────────────
+      // VIEW 1: ROADMAP / SKILL TREE
+      // ──────────────────────────────────────────
+      if (subview === "tree") {
+        var scheduleWindow = winCard("schedule.exe · Workshop Roadmap", false, [
+          h("div", {style:"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem"},
+            h("div", null,
+              h("b", {style:"font-size:1.05rem"}, "Workshop Schedule"),
+              h("p", {style:"font-size:.9rem;color:var(--muted);margin-top:.2rem"}, w.dates_text || "Dates to be announced soon.")
             ),
-            notesArea
+            h("span", {class:"chip"}, sessions.length + " interactive sessions")
           )
-        );
+        ]);
 
-        // Tab 3: Doubts & Q&A
-        var doubtQInput = h("input", {type:"text", placeholder:"What are you stuck on? (e.g. Git push rejected, MCP error)", required:true});
-        var doubtDInput = h("textarea", {style:"min-height:70px;resize:vertical", placeholder:"Provide more context, paste the error message or command you ran..."});
-        var doubtImgInput = h("input", {type:"url", placeholder:"Optional image/screenshot URL (e.g. Imgur, Cloudinary, Drive link)"});
-        var doubtMsg = msgBox();
+        var liveNotice = null;
+        if (live) {
+          liveNotice = h("div", {class:"notice", style:"margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem"},
+            h("div", {style:"display:flex;align-items:center;gap:.6rem"},
+              h("span", {class:"pulse-dot"}),
+              h("b", null, "A live session is broadcasting right now!")
+            ),
+            h("a", {class:"btn sm success", href:"#workshop-" + wid + "/live"}, "Enter Broadcast Room ▶")
+          );
+        }
 
-        var doubtForm = h("form", {class:"panel", style:"padding:1rem;background:var(--bg)"},
-          h("h4", null, "Upload / Ask a Doubt for this Session"),
-          h("div", {class:"fld", style:"margin-top:.6rem"}, h("label", null, "Your Question *"), doubtQInput),
-          h("div", {class:"fld"}, h("label", null, "Error Details / Context"), doubtDInput),
-          h("div", {class:"fld"}, h("label", null, "Screenshot URL (Optional)"), doubtImgInput),
-          h("button", {class:"btn sm", type:"submit"}, "Submit Doubt ▶"),
-          doubtMsg
-        );
+        var treeNodes = sessions.map(function(s, idx){
+          var isDone = !!doneMap[s.id];
+          var isCurrent = (idx === activeSessionIdx);
+          var nodeClass = "tree-node" + (isDone ? " done" : isCurrent ? " active" : "");
+          var subtopics = (s.description || "").split(/[·,\n]/).map(function(t){ return t.trim(); }).filter(Boolean);
 
-        doubtForm.addEventListener("submit", async function(ev){
-          ev.preventDefault();
-          var q = doubtQInput.value.trim();
-          var d = doubtDInput.value.trim();
-          var img = doubtImgInput.value.trim();
-          if (!q) return;
-
-          setMsg(doubtMsg, "Submitting doubt...");
-          var newDoubt = {
-            workshop_id: wid,
-            session_id: curr.id,
-            user_id: uid,
-            student_name: (S.profile && S.profile.full_name) || S.user.email,
-            question: q,
-            details: d,
-            screenshot_url: img,
-            status: "open",
-            created_at: new Date().toISOString()
-          };
-
-          // Try Supabase first
-          var dbSuccess = false;
-          try {
-            var insRes = await sb.from("doubts").insert(newDoubt);
-            if (!insRes.error) dbSuccess = true;
-          } catch(e){}
-
-          // Fallback to localStorage always
-          var localDoubts = [];
-          try {
-            localDoubts = JSON.parse(localStorage.getItem("start_here_doubts_" + wid) || "[]");
-          } catch(e){ localDoubts = []; }
-          localDoubts.unshift(newDoubt);
-          try {
-            localStorage.setItem("start_here_doubts_" + wid, JSON.stringify(localDoubts));
-          } catch(e){}
-
-          try {
-      await refreshDoubts();
-    } catch(e){
-      console.warn("Doubts load notice:", e);
-    }
-          setMsg(doubtMsg, "Doubt submitted successfully! Mentors will review it.", false);
-          say("Doubt uploaded! ✓");
-          doubtQInput.value = "";
-          doubtDInput.value = "";
-          doubtImgInput.value = "";
-          setTimeout(function(){ renderWorkspace(); }, 800);
+          return h("div", {class:nodeClass},
+            h("div", {class:"tree-node-top"},
+              h("span", {class:"mono"}, "NODE " + pad2(idx + 1)),
+              h("span", {class:"chip " + (isDone ? "done" : isCurrent ? "active" : "locked")},
+                isDone ? "DONE ✓" : isCurrent ? "CURRENT ▶" : "UNLOCKED"
+              )
+            ),
+            h("b", {style:"font-size:1.1rem;display:block;margin:.2rem 0"}, (idx + 1) + ". " + s.title),
+            subtopics.length ? h("div", {class:"subtopics-tags"}, subtopics.slice(0, 4).map(function(t){ return h("span", null, t); })) : null,
+            h("div", {style:"display:flex;justify-content:space-between;align-items:center;margin-top:.8rem;flex-wrap:wrap;gap:.5rem"},
+              h("span", {class:"mono"}, fmt(s.starts_at)),
+              h("div", {style:"display:flex;gap:.4rem"},
+                h("button", {
+                  class:"btn sm line",
+                  onclick:function(e){ e.stopPropagation(); location.hash = "workshop-" + wid + "/notes/" + (idx + 1); }
+                }, "📝 Notes"),
+                h("button", {
+                  class:"btn sm line",
+                  onclick:function(e){ e.stopPropagation(); location.hash = "workshop-" + wid + "/doubts/" + (idx + 1); }
+                }, "❓ Doubts"),
+                h("button", {
+                  class:"btn sm " + (isCurrent ? "success" : ""),
+                  onclick:function(e){ e.stopPropagation(); location.hash = "workshop-" + wid + "/session/" + (idx + 1); }
+                }, "Open Workspace →")
+              )
+            )
+          );
         });
 
-        var doubtsListEl = h("div", {style:"margin-top:1rem"},
-          h("h4", null, "Submitted Doubts for this Session (" + sessionDoubts.length + ")"),
-          sessionDoubts.length
-            ? sessionDoubts.map(function(dbItem){
-                return h("div", {class:"doubt-item"},
-                  h("div", {style:"display:flex;justify-content:space-between;align-items:center"},
-                    h("b", null, dbItem.question),
-                    h("span", {class:"chip " + (dbItem.status === "answered" ? "done" : "active")}, dbItem.status === "answered" ? "ANSWERED ✓" : "OPEN 💬")
-                  ),
-                  dbItem.details ? h("p", {style:"font-size:.85rem;color:var(--muted)"}, dbItem.details) : null,
-                  dbItem.screenshot_url ? h("p", {style:"font-size:.8rem"}, h("a", {href:dbItem.screenshot_url, target:"_blank", class:"link"}, "View Screenshot ↗")) : null,
-                  dbItem.answer ? h("div", {style:"background:var(--panel);border:1px solid var(--green);border-radius:6px;padding:.5rem;margin-top:.4rem;font-size:.85rem"},
-                    h("b", {style:"color:var(--green)"}, "Mentor Reply: "), dbItem.answer
-                  ) : null,
-                  h("span", {class:"mono", style:"font-size:.7rem"}, (dbItem.student_name || "Student") + " · " + fmt(dbItem.created_at))
-                );
-              })
-            : h("p", {style:"color:var(--muted);font-size:.85rem;margin-top:.5rem"}, "No doubts submitted yet for this session. Be the first to ask!")
+        var treeWindow = winCard("skill_tree.exe · Level Progression Map", false, [
+          h("p", {class:"mono", style:"margin-bottom:1.2rem"}, "Progression tree — Click 'Open Workspace' on any node to enter its dedicated workspace:"),
+          sessions.length ? h("div", {class:"tree-track"}, treeNodes) : h("p", {style:"color:var(--muted)"}, "Sessions coming soon.")
+        ]);
+
+        subpageContent = h("div", {class:"stack"}, liveNotice, scheduleWindow, treeWindow);
+      }
+
+      // ──────────────────────────────────────────
+      // VIEW 2: SESSION WORKSPACE
+      // ──────────────────────────────────────────
+      else if (subview === "session") {
+        if (!curr) {
+          subpageContent = h("div", {class:"panel"}, h("p", null, "No session selected."));
+        } else {
+          var isCurrDone = !!doneMap[curr.id];
+          var subtopics = (curr.description || "").split(/[·,\n]/).map(function(t){ return t.trim(); }).filter(Boolean);
+
+          var sessionBody = h("div", {style:"padding:1.4rem;display:grid;gap:1.2rem"},
+            h("div", null,
+              h("span", {class:"mono"}, "SESSION " + pad2(sNum) + " OF " + pad2(sessions.length)),
+              h("h3", {style:"font-size:1.4rem;margin:.3rem 0 .5rem"}, curr.title),
+              curr.description ? h("p", {style:"font-size:.95rem;line-height:1.6;color:var(--ink)"}, curr.description) : null,
+              h("span", {class:"mono", style:"display:block;margin-top:.4rem;color:var(--muted)"}, "Scheduled: " + fmt(curr.starts_at))
+            ),
+            h("div", {class:"panel", style:"padding:1.1rem;background:var(--bg)"},
+              h("h4", {style:"margin-bottom:.4rem"}, "Recording & Replay"),
+              curr.recording_url
+                ? h("div", null,
+                    h("p", {style:"font-size:.88rem;color:var(--muted);margin-bottom:.8rem"}, "Unlisted session video is ready for enrolled students:"),
+                    h("a", {class:"btn", href:curr.recording_url, target:"_blank", rel:"noopener"}, "Watch Recording ↗")
+                  )
+                : h("p", {style:"font-size:.88rem;color:var(--muted)"}, "Recording link will be posted right here after the live class wraps up.")
+            ),
+            subtopics.length ? h("div", {class:"panel", style:"padding:1.1rem;background:var(--bg)"},
+              h("h4", {style:"margin-bottom:.5rem"}, "Key Topics & Tools Covered"),
+              h("ul", {style:"margin:0;padding-left:1.2rem;line-height:1.7;font-size:.9rem"},
+                subtopics.map(function(st){ return h("li", null, st); })
+              )
+            ) : null,
+            h("div", {style:"display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding-top:.5rem"},
+              h("button", {
+                class: "btn " + (isCurrDone ? "success" : ""),
+                onclick: function(){ toggleSessionProgress(curr); }
+              }, isCurrDone ? "✓ Session Completed" : "◯ Mark Session Complete ▶"),
+              h("span", {class:"mono"}, isCurrDone ? "Nice work! Node marked complete on progression map." : "Click when you have finished this session.")
+            ),
+            h("div", {style:"display:flex;gap:.8rem;flex-wrap:wrap;padding-top:.5rem;border-top:1px dashed var(--line)"},
+              h("button", {class:"btn sm line", onclick:function(){ location.hash = "workshop-" + wid + "/notes/" + sNum; }}, "📝 Open Study Notes for Session " + pad2(sNum) + " →"),
+              h("button", {class:"btn sm line", onclick:function(){ location.hash = "workshop-" + wid + "/doubts/" + sNum; }}, "❓ Ask a Doubt for Session " + pad2(sNum) + " →")
+            )
+          );
+
+          var windowFooter = h("div", {style:"display:flex;justify-content:space-between;align-items:center;padding:.8rem 1.2rem;border-top:2px solid var(--line);background:var(--bg)"},
+            activeSessionIdx > 0
+              ? h("button", {class:"btn sm line", onclick:function(){ location.hash = "workshop-" + wid + "/session/" + activeSessionIdx; }}, "← Session " + pad2(activeSessionIdx))
+              : h("span"),
+            activeSessionIdx < sessions.length - 1
+              ? h("button", {class:"btn sm line", onclick:function(){ location.hash = "workshop-" + wid + "/session/" + (activeSessionIdx + 2); }}, "Session " + pad2(activeSessionIdx + 2) + " →")
+              : h("span")
+          );
+
+          var sessionWin = h("div", {class:"win session-win", style:"margin-top:0"},
+            h("div", {class:"wbar"},
+              h("span", {class:"dots"}, h("i"), h("i"), h("i")),
+              h("span", {class:"wt"}, "session_" + pad2(sNum) + "_workspace.exe"),
+              h("span", {class:"mono", style:"color:#14141A;font-weight:700"}, "LV " + pad2(w.level_no))
+            ),
+            sessionBody,
+            windowFooter
+          );
+
+          subpageContent = h("div", null, renderSessionPills("session"), sessionWin);
+        }
+      }
+
+      // ──────────────────────────────────────────
+      // VIEW 3: STUDY NOTES & SCRATCHPAD
+      // ──────────────────────────────────────────
+      else if (subview === "notes") {
+        if (!curr) {
+          subpageContent = h("div", {class:"panel"}, h("p", null, "No session selected."));
+        } else {
+          var storageKey = "start_here_notes_" + uid + "_" + curr.id;
+          var savedNotes = localStorage.getItem(storageKey) || "";
+          var noteStatus = h("span", {class:"mono", style:"color:var(--green);font-size:.75rem"}, "✓ Ready");
+
+          var notesArea = h("textarea", {
+            class:"notes-pad",
+            placeholder:"Write your personal session notes, key commands, code snippets, or project ideas here...\n(Automatically saved on this device as you type)",
+            oninput: function(ev){
+              localStorage.setItem(storageKey, ev.target.value);
+              noteStatus.textContent = "✓ Auto-saved locally (" + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"}) + ")";
+            }
+          }, savedNotes);
+
+          function downloadNotes(){
+            var val = notesArea.value || "";
+            var blob = new Blob([val], {type:"text/plain;charset=utf-8"});
+            var a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "session_" + pad2(sNum) + "_notes.txt";
+            a.click();
+            URL.revokeObjectURL(a.href);
+          }
+
+          var subtopicsList = (curr.description || "Core concepts and exercises").split(/[·,\n]/).map(function(item){
+            var clean = item.trim();
+            return clean ? h("li", null, clean) : null;
+          }).filter(Boolean);
+
+          var notesBody = h("div", {style:"padding:1.4rem;display:grid;gap:1.2rem"},
+            h("div", null,
+              h("span", {class:"mono"}, "SESSION " + pad2(sNum) + " NOTES"),
+              h("h3", {style:"margin:.3rem 0 .4rem"}, curr.title + " · Study Notes"),
+              h("p", {style:"color:var(--muted);font-size:.88rem"}, "Official summary and your private auto-saving scratchpad.")
+            ),
+            h("div", {class:"panel", style:"padding:1.1rem;background:var(--bg)"},
+              h("h4", {style:"margin-bottom:.5rem"}, "Official Cheatsheet & Key Takeaways"),
+              h("ul", {style:"margin:0;padding-left:1.2rem;line-height:1.7;font-size:.9rem"}, subtopicsList)
+            ),
+            h("div", null,
+              h("div", {style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;flex-wrap:wrap;gap:.4rem"},
+                h("h4", null, "Your Personal Study Scratchpad"),
+                h("div", {style:"display:flex;align-items:center;gap:.6rem"},
+                  noteStatus,
+                  h("button", {class:"btn sm line", type:"button", onclick:downloadNotes}, "Download (.txt)")
+                )
+              ),
+              notesArea
+            )
+          );
+
+          var notesWin = h("div", {class:"win session-win", style:"margin-top:0"},
+            h("div", {class:"wbar"},
+              h("span", {class:"dots"}, h("i"), h("i"), h("i")),
+              h("span", {class:"wt"}, "study_notes_session_" + pad2(sNum) + ".exe"),
+              h("span", {class:"mono", style:"color:#14141A;font-weight:700"}, "LV " + pad2(w.level_no))
+            ),
+            notesBody
+          );
+
+          subpageContent = h("div", null, renderSessionPills("notes"), notesWin);
+        }
+      }
+
+      // ──────────────────────────────────────────
+      // VIEW 4: DOUBTS & QUESTIONS WINDOW
+      // ──────────────────────────────────────────
+      else if (subview === "doubts") {
+        if (!curr) {
+          subpageContent = h("div", {class:"panel"}, h("p", null, "No session selected."));
+        } else {
+          var currDoubts = doubts.filter(function(d){ return d.session_id === curr.id; });
+
+          var doubtQInput = h("input", {type:"text", placeholder:"What are you stuck on? (e.g. Git push rejected, MCP error)", required:true});
+          var doubtDInput = h("textarea", {style:"min-height:70px;resize:vertical", placeholder:"Provide more context, paste the error message or terminal command..."});
+          var doubtImgInput = h("input", {type:"url", placeholder:"Optional image/screenshot URL (e.g. Imgur, Cloudinary, Drive link)"});
+          var doubtMsg = msgBox();
+
+          var doubtForm = h("form", {class:"panel", style:"padding:1.1rem;background:var(--bg)"},
+            h("h4", null, "Upload / Ask a Doubt for Session " + pad2(sNum)),
+            h("div", {class:"fld", style:"margin-top:.6rem"}, h("label", null, "Your Question *"), doubtQInput),
+            h("div", {class:"fld"}, h("label", null, "Error Details / Terminal Context"), doubtDInput),
+            h("div", {class:"fld"}, h("label", null, "Screenshot URL (Optional)"), doubtImgInput),
+            h("button", {class:"btn sm", type:"submit"}, "Submit Doubt ▶"),
+            doubtMsg
+          );
+
+          doubtForm.addEventListener("submit", async function(ev){
+            ev.preventDefault();
+            var q = doubtQInput.value.trim();
+            var d = doubtDInput.value.trim();
+            var img = doubtImgInput.value.trim();
+            if (!q) return;
+
+            setMsg(doubtMsg, "Submitting doubt...");
+            var newDoubt = {
+              workshop_id: wid,
+              session_id: curr.id,
+              user_id: uid,
+              student_name: (S.profile && S.profile.full_name) || S.user.email,
+              question: q,
+              details: d,
+              screenshot_url: img,
+              status: "open",
+              created_at: new Date().toISOString()
+            };
+
+            var dbSuccess = false;
+            try {
+              var insRes = await sb.from("doubts").insert(newDoubt);
+              if (!insRes.error) dbSuccess = true;
+            } catch(e){}
+
+            var localDoubts = [];
+            try {
+              localDoubts = JSON.parse(localStorage.getItem("start_here_doubts_" + wid) || "[]");
+            } catch(e){ localDoubts = []; }
+            localDoubts.unshift(newDoubt);
+            try {
+              localStorage.setItem("start_here_doubts_" + wid, JSON.stringify(localDoubts));
+            } catch(e){}
+
+            try { await refreshDoubts(); } catch(e){}
+            setMsg(doubtMsg, "Doubt submitted successfully! Mentors will review it.", false);
+            say("Doubt uploaded! ✓");
+            doubtQInput.value = "";
+            doubtDInput.value = "";
+            doubtImgInput.value = "";
+            setTimeout(function(){ renderWorkspace(); }, 600);
+          });
+
+          var doubtsListEl = h("div", {style:"margin-top:1.2rem"},
+            h("h4", null, "Submitted Doubts for Session " + pad2(sNum) + " (" + currDoubts.length + ")"),
+            currDoubts.length
+              ? currDoubts.map(function(dbItem){
+                  return h("div", {class:"doubt-item"},
+                    h("div", {style:"display:flex;justify-content:space-between;align-items:center"},
+                      h("b", null, dbItem.question),
+                      h("span", {class:"chip " + (dbItem.status === "answered" ? "done" : "active")}, dbItem.status === "answered" ? "ANSWERED ✓" : "OPEN 💬")
+                    ),
+                    dbItem.details ? h("p", {style:"font-size:.85rem;color:var(--muted)"}, dbItem.details) : null,
+                    dbItem.screenshot_url ? h("p", {style:"font-size:.8rem"}, h("a", {href:dbItem.screenshot_url, target:"_blank", class:"link"}, "View Screenshot ↗")) : null,
+                    dbItem.answer ? h("div", {style:"background:var(--panel);border:1px solid var(--green);border-radius:6px;padding:.5rem;margin-top:.4rem;font-size:.85rem"},
+                      h("b", {style:"color:var(--green)"}, "Mentor Reply: "), dbItem.answer
+                    ) : null,
+                    h("span", {class:"mono", style:"font-size:.7rem"}, (dbItem.student_name || "Student") + " · " + fmt(dbItem.created_at))
+                  );
+                })
+              : h("p", {style:"color:var(--muted);font-size:.85rem;margin-top:.5rem"}, "No doubts submitted yet for this session. Be the first to ask!")
+          );
+
+          var doubtsBody = h("div", {style:"padding:1.4rem;display:grid;gap:1.2rem"},
+            h("div", null,
+              h("span", {class:"mono"}, "SESSION " + pad2(sNum) + " Q&A"),
+              h("h3", {style:"margin:.3rem 0 .4rem"}, "Doubt Resolution Center"),
+              h("p", {style:"color:var(--muted);font-size:.88rem"}, "Stuck on a bug, setup issue, or concept? Post it below for mentor guidance.")
+            ),
+            doubtForm,
+            doubtsListEl
+          );
+
+          var doubtsWin = h("div", {class:"win session-win", style:"margin-top:0"},
+            h("div", {class:"wbar"},
+              h("span", {class:"dots"}, h("i"), h("i"), h("i")),
+              h("span", {class:"wt"}, "doubt_resolution_session_" + pad2(sNum) + ".exe"),
+              h("span", {class:"mono", style:"color:#14141A;font-weight:700"}, "LV " + pad2(w.level_no))
+            ),
+            doubtsBody
+          );
+
+          subpageContent = h("div", null, renderSessionPills("doubts"), doubtsWin);
+        }
+      }
+
+      // ──────────────────────────────────────────
+      // VIEW 5: LIVE BROADCAST ROOM
+      // ──────────────────────────────────────────
+      else if (subview === "live") {
+        var liveBody = h("div", {style:"padding:1.6rem;display:grid;gap:1.2rem"},
+          h("div", {style:"display:flex;align-items:center;gap:.7rem"},
+            live ? h("span", {class:"pulse-dot"}) : null,
+            h("h3", null, live ? "LIVE BROADCAST ACTIVE" : "BROADCAST STANDBY")
+          ),
+          h("p", {style:"font-size:.95rem;color:var(--ink);line-height:1.6"},
+            live
+              ? "A live workshop session is broadcasting right now! Join using the link below with your registered name."
+              : "No live stream is active at this moment. The meeting room link will automatically light up here 10 minutes before each class."
+          ),
+          live ? h("div", {style:"margin-top:.6rem"},
+            h("a", {class:"btn success", href:live, target:"_blank", rel:"noopener", style:"font-size:1.05rem;padding:.85rem 1.4rem"}, "Join Live Stream ▶")
+          ) : null,
+          h("div", {class:"panel", style:"padding:1.1rem;background:var(--bg);margin-top:.6rem"},
+            h("h4", {style:"margin-bottom:.4rem"}, "Live Class Guidelines"),
+            h("ul", {style:"margin:0;padding-left:1.2rem;line-height:1.7;font-size:.9rem"},
+              h("li", null, "Please keep your microphone muted when entering the session."),
+              h("li", null, "Use the '❓ Doubts' tab to submit questions or code issues in real-time."),
+              h("li", null, "All sessions are recorded and will appear in the Session Workspace afterward.")
+            )
+          )
         );
 
-        var tabDoubtsContent = h("div", {style:"padding:1.2rem;display:grid;gap:1rem"},
+        var liveWin = winCard("broadcast_room.exe · Live Stream", false, [liveBody]);
+        subpageContent = h("div", null, liveWin);
+      }
+
+      // ──────────────────────────────────────────
+      // VIEW 6: CHALLENGES & COMPETITIONS
+      // ──────────────────────────────────────────
+      else if (subview === "challenge") {
+        var compWindows = comps.map(function(c){
+          return compPanel(c, submissionsMap[c.id]);
+        });
+        subpageContent = h("div", {class:"stack"},
           h("div", null,
-            h("h3", null, "Session Doubts & Questions Window"),
-            h("p", {style:"color:var(--muted);font-size:.88rem;margin-top:.2rem"}, "Stuck on a bug, setup issue, or concept? Post it here for mentor resolution.")
+            h("h3", null, "Workshop Projects & Challenges"),
+            h("p", {style:"color:var(--muted);font-size:.9rem;margin-top:.2rem"}, "Submit your projects to qualify for certificates and hackathon prizes.")
           ),
-          doubtForm,
-          doubtsListEl
-        );
-
-        var activeBody = (activeTab === "notes") ? tabNotesContent : (activeTab === "doubts") ? tabDoubtsContent : tabOverviewContent;
-
-        // Window Footer with Next/Prev session navigation
-        var windowFooter = h("div", {style:"display:flex;justify-content:space-between;align-items:center;padding:.8rem 1.2rem;border-top:2px solid var(--line);background:var(--bg)"},
-          activeSessionIdx > 0
-            ? h("button", {class:"btn sm line", onclick:function(){ activeSessionIdx--; renderWorkspace(); }}, "← Session 0" + activeSessionIdx)
-            : h("span"),
-          activeSessionIdx < sessions.length - 1
-            ? h("button", {class:"btn sm line", onclick:function(){ activeSessionIdx++; renderWorkspace(); }}, "Session 0" + (activeSessionIdx + 2) + " →")
-            : h("span")
-        );
-
-        sessionWindow = h("div", {class:"win session-win", id:"active-session-window"},
-          h("div", {class:"wbar"},
-            h("span", {class:"dots"}, h("i"), h("i"), h("i")),
-            h("span", {class:"wt"}, "session_0" + (activeSessionIdx + 1) + "_workspace.exe"),
-            h("span", {class:"mono", style:"color:#14141A;font-weight:700"}, "LV 0" + w.level_no)
-          ),
-          tabsBar,
-          activeBody,
-          windowFooter
+          compWindows.length ? compWindows : h("p", {style:"color:var(--muted)"}, "No active challenges for this workshop level yet.")
         );
       }
 
-      // Competition Window (if available)
-      var compWindows = comps.map(function(c){
-        return compPanel(c, submissionsMap[c.id]);
-      });
-
-      container.append(headerEl, winRow, treeWindow);
-      if (sessionWindow) container.append(sessionWindow);
-      compWindows.forEach(function(cw){ if (cw) container.append(cw); });
-
+      container.append(headerEl, navBar, subpageContent);
       app.replaceChildren(container);
       updateProgress();
     }
@@ -1101,7 +1288,7 @@ async function workshopView(wid){
     app.replaceChildren(h("div", {class:"vwrap"},
       h("h2", null, "Could not load level"),
       h("p", {style:"margin-top:1rem;color:var(--pink)"}, err.message || String(err)),
-      h("button", {class:"btn sm", style:"margin-top:1rem", onclick:function(){ workshopView(wid); }}, "Retry ▶")
+      h("button", {class:"btn sm", style:"margin-top:1rem", onclick:function(){ workshopView(wid, subview, sessionParam); }}, "Retry ▶")
     ));
   }
 }
@@ -1193,7 +1380,12 @@ function route(){
 
   if (clean.indexOf("workshop-") === 0) {
     if (!S.user) return go("auth");
-    workshopView(clean.slice(9));
+    var rest = clean.slice(9);
+    var slashParts = rest.split("/");
+    var wid = slashParts[0];
+    var subview = slashParts[1] || "tree";
+    var sessionParam = slashParts[2] ? parseInt(slashParts[2], 10) : null;
+    workshopView(wid, subview, sessionParam);
     hud();
     return;
   }
