@@ -540,6 +540,15 @@ function tabWorkshops(main){
 function tabSessions(main){
   var selWid = DB.workshops[0] ? DB.workshops[0].id : "";
 
+  function isSessionCompleted(s){
+    if (!s) return false;
+    return !!(s.is_completed || (s.description && (s.description.indexOf("[COMPLETED]") !== -1 || s.description.indexOf("<!--status:completed-->") !== -1)));
+  }
+
+  function cleanDesc(d){
+    return (d || "").replace(/\[COMPLETED\]/g, "").replace(/<!--status:completed-->/g, "").trim();
+  }
+
   function render(){
     main.replaceChildren();
     var wSel = h("select", {style:"font:inherit;border:2px solid var(--ink);border-radius:8px;padding:.4rem .7rem;background:var(--bg);color:var(--ink)"},
@@ -554,7 +563,10 @@ function tabSessions(main){
     var sess = DB.sessions[selWid] || [];
     main.append(
       h("div", {class:"row", style:"justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem"},
-        h("h2", null, "Sessions"),
+        h("div", null,
+          h("h2", null, "Sessions"),
+          h("p", {style:"color:var(--muted);font-size:.85rem;margin-top:.2rem"}, "Manage workshop curriculum and toggle session completion for all students.")
+        ),
         h("button", {class:"btn", onclick:function(){ sessionModal(null); }}, "+ Add Session")
       ),
       h("div", {class:"row", style:"margin-bottom:1rem"}, h("b", null, "Workshop:"), wSel),
@@ -562,18 +574,38 @@ function tabSessions(main){
         h("table", {class:"atbl"},
           h("thead", null, h("tr", null,
             h("th", null, "#"),
-            h("th", null, "Title"),
+            h("th", null, "Title & Syllabus"),
+            h("th", null, "Status"),
             h("th", null, "Date"),
             h("th", null, "Recording"),
             h("th", null, "Actions")
           )),
           h("tbody", null, sess.map(function(s, i){
+            var isDone = isSessionCompleted(s);
+            var clean = cleanDesc(s.description);
             return h("tr", null,
               h("td", null, h("span", {class:"mono"}, s.position || (i + 1))),
-              h("td", null, h("b", null, s.title), s.description ? h("span", {class:"mono", style:"display:block"}, s.description) : null),
+              h("td", null,
+                h("b", null, s.title),
+                clean ? h("span", {class:"mono", style:"display:block;margin-top:.2rem;color:var(--muted);max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}, clean) : null
+              ),
+              h("td", null, h("span", {class:"badge " + (isDone ? "pub" : "draft")}, isDone ? "Completed ✓" : "Upcoming")),
               h("td", null, h("span", {class:"mono"}, fmt(s.starts_at))),
               h("td", null, s.recording_url ? h("a", {href:s.recording_url, target:"_blank", class:"link"}, "Link ↗") : h("span", {class:"mono"}, "—")),
               h("td", null, h("div", {class:"row"},
+                h("button", {
+                  class: "btn sm " + (isDone ? "warn" : "success"),
+                  onclick: async function(){
+                    var newDesc = isDone ? clean : (clean ? clean + "\n[COMPLETED]" : "[COMPLETED]");
+                    say("Updating session status in Supabase...");
+                    var res = await sb.from("sessions").update({ description: newDesc }).eq("id", s.id);
+                    if (res.error) { say("Error: " + res.error.message); return; }
+                    s.description = newDesc;
+                    await loadDbData();
+                    render();
+                    say(isDone ? "Marked session as upcoming." : "Marked session as completed for cohort! ✓");
+                  }
+                }, isDone ? "Mark Upcoming" : "Mark Complete ✓"),
                 h("button", {class:"btn sm line", onclick:function(){ sessionModal(s); }}, "Edit"),
                 h("button", {class:"btn sm danger", onclick:async function(){
                   if (!confirm("Delete '" + s.title + "' from Supabase?")) return;
@@ -593,12 +625,19 @@ function tabSessions(main){
   function sessionModal(existing){
     var edit = !!existing;
     var s = existing || { title: "", starts_at: "", description: "", recording_url: "", position: (DB.sessions[selWid] || []).length + 1 };
+    var isDone = isSessionCompleted(s);
+    var clean = cleanDesc(s.description);
+
     var form = h("form", null,
       fld("sm-title", "Session title", {required:true, value:s.title}),
       fld("sm-pos", "Position (order)", {type:"number", min:"1", value:s.position || 1}),
       fld("sm-date", "Date & time", {type:"datetime-local", value:s.starts_at ? new Date(s.starts_at).toISOString().slice(0, 16) : ""}),
-      h("div", {class:"fld"}, h("label", {for:"sm-desc"}, "Short description"), h("textarea", {id:"sm-desc", style:"min-height:60px"}, s.description || "")),
+      h("div", {class:"fld"}, h("label", {for:"sm-desc"}, "Short description / Syllabus"), h("textarea", {id:"sm-desc", style:"min-height:70px"}, clean)),
       fld("sm-rec", "Recording URL", {type:"url", value:s.recording_url || ""}),
+      h("div", {class:"fld", style:"display:flex;align-items:center;gap:.6rem;margin-top:.4rem;padding:.5rem 0"},
+        h("input", {id:"sm-completed", type:"checkbox", checked:isDone}),
+        h("label", {for:"sm-completed", style:"cursor:pointer;font-weight:600;font-size:.85rem"}, "Mark session as completed for all students")
+      ),
       h("div", {class:"modal-footer"},
         h("button", {class:"btn line", type:"button", onclick:closeModal}, "Cancel"),
         h("button", {class:"btn", type:"submit"}, edit ? "Save" : "Add session")
@@ -607,12 +646,16 @@ function tabSessions(main){
 
     form.addEventListener("submit", async function(ev){
       ev.preventDefault();
+      var isCompleted = $("sm-completed").checked;
+      var rawDesc = cleanDesc($("sm-desc").value.trim());
+      var finalDesc = isCompleted ? (rawDesc ? rawDesc + "\n[COMPLETED]" : "[COMPLETED]") : rawDesc;
+
       var dataToSave = {
         workshop_id: selWid,
         title: $("sm-title").value.trim(),
         position: parseInt($("sm-pos").value) || 1,
         starts_at: $("sm-date").value ? new Date($("sm-date").value).toISOString() : null,
-        description: $("sm-desc").value.trim(),
+        description: finalDesc,
         recording_url: $("sm-rec").value.trim() || null
       };
 

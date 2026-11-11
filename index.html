@@ -205,6 +205,16 @@ window.go = go;
 function pad2(n){ return (n < 10 ? "0" : "") + n; }
 function fmt(t){ return t ? new Date(t).toLocaleString([], {dateStyle:"medium", timeStyle:"short"}) : "Date to be announced"; }
 function isAdmin(){ return !!(S.profile && S.profile.role === "admin"); }
+function isSessionCompleted(s, doneMap){
+  if (!s) return false;
+  if (s.is_completed) return true;
+  if (s.description && (s.description.indexOf("[COMPLETED]") !== -1 || s.description.indexOf("<!--status:completed-->") !== -1)) return true;
+  if (doneMap && doneMap[s.id]) return true;
+  return false;
+}
+function cleanSessionDesc(desc){
+  return (desc || "").replace(/\[COMPLETED\]/g, "").replace(/<!--status:completed-->/g, "").trim();
+}
 
 function h(tag, props){
   var e = document.createElement(tag), k, kids = Array.prototype.slice.call(arguments, 2);
@@ -555,7 +565,7 @@ async function workshopsView(){
     var res = await Promise.all([
       sb.from("workshops").select("*").eq("published", true).order("level_no"),
       sb.from("enrollments").select("workshop_id").eq("user_id", uid),
-      sb.from("sessions").select("id,workshop_id"),
+      sb.from("sessions").select("id,workshop_id,description"),
       sb.from("session_progress").select("session_id").eq("user_id", uid)
     ]);
 
@@ -573,7 +583,7 @@ async function workshopsView(){
     var totalSessions = {}, doneSessions = {};
     (res[2].data || []).forEach(function(s){
       totalSessions[s.workshop_id] = (totalSessions[s.workshop_id] || 0) + 1;
-      if (doneSet[s.id]) {
+      if (doneSet[s.id] || isSessionCompleted(s)) {
         doneSessions[s.workshop_id] = (doneSessions[s.workshop_id] || 0) + 1;
       }
     });
@@ -606,7 +616,7 @@ async function workshopsView(){
         h("h3", null, w.title),
         w.description ? h("p", null, w.description) : null,
         h("div", {class:"bar2"}, h("i", {style:"width:" + pct + "%"})),
-        h("span", {class:"mono"}, isEnrolled ? comp + " / " + tot + " sessions" : "Not started"),
+        h("span", {class:"mono"}, comp + " / " + tot + " sessions completed"),
         h("button", {class:"btn", style:"margin-top:.6rem", onclick:async function(){
           if (!isEnrolled) {
             try {
@@ -743,6 +753,9 @@ async function workshopView(wid, subview, sessionParam){
       var sessions = res[2].data || [];
       var doneMap = {};
       (res[3].data || []).forEach(function(p){ doneMap[p.session_id] = true; });
+      sessions.forEach(function(s){
+        if (isSessionCompleted(s, doneMap)) doneMap[s.id] = true;
+      });
 
       var comps = res[4].data || [];
       var submissionsMap = {};
@@ -806,7 +819,7 @@ async function workshopView(wid, subview, sessionParam){
       activeSessionIdx = sessionParam - 1;
     } else {
       for (var sIdx = 0; sIdx < sessions.length; sIdx++) {
-        if (!doneMap[sessions[sIdx].id]) {
+        if (!isSessionCompleted(sessions[sIdx], doneMap)) {
           activeSessionIdx = sIdx;
           break;
         }
@@ -818,39 +831,38 @@ async function workshopView(wid, subview, sessionParam){
     var progressBar = h("i", {style:"width:0"});
 
     function updateProgress(){
-      var compCount = sessions.filter(function(s){ return doneMap[s.id]; }).length;
+      var compCount = sessions.filter(function(s){ return isSessionCompleted(s, doneMap); }).length;
       var total = sessions.length;
       progressBar.style.width = (total ? Math.round(compCount / total * 100) : 0) + "%";
-      progressPct.textContent = (total && compCount === total) ? "ALL SESSIONS COMPLETED 🎉" : compCount + " / " + total + " sessions finished";
+      progressPct.textContent = (total && compCount === total) ? "ALL SESSIONS COMPLETED 🎉" : compCount + " / " + total + " sessions completed";
     }
 
-    async function toggleSessionProgress(s){
-      var isDone = !doneMap[s.id];
-      if (isDone) {
+    async function toggleAdminSession(s){
+      if (!isAdmin()) {
+        say("Only administrators can update session status.");
+        return;
+      }
+      var currentlyDone = isSessionCompleted(s, doneMap);
+      var newDone = !currentlyDone;
+      var clean = cleanSessionDesc(s.description);
+      var updatedDesc = newDone ? clean + "\n[COMPLETED]" : clean;
+
+      say("Updating session status...");
+      var updRes = await sb.from("sessions").update({ description: updatedDesc }).eq("id", s.id);
+      if (updRes.error) {
+        say("Error updating session: " + updRes.error.message);
+        return;
+      }
+      s.description = updatedDesc;
+      if (newDone) {
         doneMap[s.id] = true;
-        updateProgress();
-        renderWorkspace();
-        var addRes = await sb.from("session_progress").insert({ user_id: uid, session_id: s.id });
-        if (addRes.error && addRes.error.code !== "23505") {
-          delete doneMap[s.id];
-          updateProgress();
-          renderWorkspace();
-          say("Could not save progress. Please try again.");
-        } else {
-          say("Session " + pad2(s.position) + " marked complete! ✓");
-        }
+        say("Session " + pad2(s.position) + " marked completed for cohort! ✓");
       } else {
         delete doneMap[s.id];
-        updateProgress();
-        renderWorkspace();
-        var delRes = await sb.from("session_progress").delete().eq("user_id", uid).eq("session_id", s.id);
-        if (delRes.error) {
-          doneMap[s.id] = true;
-          updateProgress();
-          renderWorkspace();
-          say("Could not update progress.");
-        }
+        say("Session " + pad2(s.position) + " marked incomplete.");
       }
+      updateProgress();
+      renderWorkspace();
     }
 
     function renderSessionPills(targetSubview){
@@ -884,30 +896,28 @@ async function workshopView(wid, subview, sessionParam){
         progressPct
       );
 
-      // Top Task Navigation Bar
+      // Top Task Navigation Bar with Coming Soon indicators
       var sNum = activeSessionIdx + 1;
-      var sessionDoubts = doubts.filter(function(d){ return d.session_id === (sessions[activeSessionIdx] && sessions[activeSessionIdx].id); });
       var navItems = [
         { id:"tree", label:"🗺️ Roadmap", hash:"#workshop-" + wid + "/tree" },
-        { id:"session", label:"💻 Session " + pad2(sNum), hash:"#workshop-" + wid + "/session/" + sNum },
-        { id:"notes", label:"📝 Study Notes", hash:"#workshop-" + wid + "/notes/" + sNum },
-        { id:"doubts", label:"❓ Doubts (" + sessionDoubts.length + ")", hash:"#workshop-" + wid + "/doubts/" + sNum },
-        { id:"live", label:(live ? "🔴 Live Broadcast" : "📺 Live Stream"), hash:"#workshop-" + wid + "/live" }
+        { id:"session", label:"💻 Session " + pad2(sNum) + " Details", hash:"#workshop-" + wid + "/session/" + sNum },
+        { id:"notes", label:"📝 Study Notes", sub:"(Soon)", hash:"#workshop-" + wid + "/notes/" + sNum },
+        { id:"doubts", label:"❓ Doubts", sub:"(Soon)", hash:"#workshop-" + wid + "/doubts/" + sNum },
+        { id:"live", label:live ? "🔴 Live Broadcast" : "📺 Live Stream", sub:live ? "" : "(Soon)", hash:"#workshop-" + wid + "/live" },
+        { id:"challenge", label:"🏆 Challenge", sub:"(Soon)", hash:"#workshop-" + wid + "/challenge" }
       ];
-      if (comps.length > 0) {
-        navItems.push({ id:"challenge", label:"🏆 Challenge", hash:"#workshop-" + wid + "/challenge" });
-      }
 
       var navBar = h("div", {class:"workshop-nav"},
         navItems.map(function(item){
           var isCurrent = (subview === item.id);
+          var labelText = item.label + (item.sub ? " " + item.sub : "");
           return h("button", {
             type:"button",
             class:"workshop-nav-btn" + (isCurrent ? " on" : ""),
             onclick: function(){
               location.hash = item.hash;
             }
-          }, item.label);
+          }, labelText);
         })
       );
 
@@ -940,42 +950,33 @@ async function workshopView(wid, subview, sessionParam){
         }
 
         var treeNodes = sessions.map(function(s, idx){
-          var isDone = !!doneMap[s.id];
+          var isDone = isSessionCompleted(s, doneMap);
           var isCurrent = (idx === activeSessionIdx);
           var nodeClass = "tree-node" + (isDone ? " done" : isCurrent ? " active" : "");
-          var subtopics = (s.description || "").split(/[·,\n]/).map(function(t){ return t.trim(); }).filter(Boolean);
+          var cleanDesc = cleanSessionDesc(s.description);
+          var subtopics = cleanDesc.split(/[·,\n]/).map(function(t){ return t.trim(); }).filter(Boolean);
 
-          return h("div", {class:nodeClass},
+          return h("div", {class:nodeClass, onclick:function(){ location.hash = "workshop-" + wid + "/session/" + (idx + 1); }},
             h("div", {class:"tree-node-top"},
               h("span", {class:"mono"}, "NODE " + pad2(idx + 1)),
               h("span", {class:"chip " + (isDone ? "done" : isCurrent ? "active" : "locked")},
-                isDone ? "DONE ✓" : isCurrent ? "CURRENT ▶" : "UNLOCKED"
+                isDone ? "DONE ✓" : isCurrent ? "CURRENT ▶" : "UPCOMING"
               )
             ),
             h("b", {style:"font-size:1.1rem;display:block;margin:.2rem 0"}, (idx + 1) + ". " + s.title),
             subtopics.length ? h("div", {class:"subtopics-tags"}, subtopics.slice(0, 4).map(function(t){ return h("span", null, t); })) : null,
-            h("div", {style:"display:flex;justify-content:space-between;align-items:center;margin-top:.8rem;flex-wrap:wrap;gap:.5rem"},
-              h("span", {class:"mono"}, fmt(s.starts_at)),
-              h("div", {style:"display:flex;gap:.4rem"},
-                h("button", {
-                  class:"btn sm line",
-                  onclick:function(e){ e.stopPropagation(); location.hash = "workshop-" + wid + "/notes/" + (idx + 1); }
-                }, "📝 Notes"),
-                h("button", {
-                  class:"btn sm line",
-                  onclick:function(e){ e.stopPropagation(); location.hash = "workshop-" + wid + "/doubts/" + (idx + 1); }
-                }, "❓ Doubts"),
-                h("button", {
-                  class:"btn sm " + (isCurrent ? "success" : ""),
-                  onclick:function(e){ e.stopPropagation(); location.hash = "workshop-" + wid + "/session/" + (idx + 1); }
-                }, "Open Workspace →")
-              )
+            h("div", {style:"display:flex;justify-content:space-between;align-items:center;margin-top:.8rem;flex-wrap:gap;gap:.5rem"},
+              h("span", {class:"mono"}, s.starts_at ? fmt(s.starts_at) : "Date to be announced"),
+              h("button", {
+                class:"btn sm " + (isCurrent ? "success" : "line"),
+                onclick:function(e){ e.stopPropagation(); location.hash = "workshop-" + wid + "/session/" + (idx + 1); }
+              }, "View Session Details →")
             )
           );
         });
 
         var treeWindow = winCard("skill_tree.exe · Level Progression Map", false, [
-          h("p", {class:"mono", style:"margin-bottom:1.2rem"}, "Progression tree — Click 'Open Workspace' on any node to enter its dedicated workspace:"),
+          h("p", {class:"mono", style:"margin-bottom:1.2rem"}, "Curriculum roadmap — Click any session to explore its full topics and syllabus details:"),
           sessions.length ? h("div", {class:"tree-track"}, treeNodes) : h("p", {style:"color:var(--muted)"}, "Sessions coming soon.")
         ]);
 
@@ -983,47 +984,69 @@ async function workshopView(wid, subview, sessionParam){
       }
 
       // ──────────────────────────────────────────
-      // VIEW 2: SESSION WORKSPACE
+      // VIEW 2: SESSION WORKSPACE (SESSION DETAILS)
       // ──────────────────────────────────────────
       else if (subview === "session") {
         if (!curr) {
           subpageContent = h("div", {class:"panel"}, h("p", null, "No session selected."));
         } else {
-          var isCurrDone = !!doneMap[curr.id];
-          var subtopics = (curr.description || "").split(/[·,\n]/).map(function(t){ return t.trim(); }).filter(Boolean);
+          var isCurrDone = isSessionCompleted(curr, doneMap);
+          var cleanDesc = cleanSessionDesc(curr.description);
+          var subtopics = cleanDesc.split(/[·,\n]/).map(function(t){ return t.trim(); }).filter(Boolean);
 
           var sessionBody = h("div", {style:"padding:1.4rem;display:grid;gap:1.2rem"},
             h("div", null,
-              h("span", {class:"mono"}, "SESSION " + pad2(sNum) + " OF " + pad2(sessions.length)),
+              h("div", {style:"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem"},
+                h("span", {class:"mono"}, "SESSION " + pad2(sNum) + " OF " + pad2(sessions.length)),
+                isCurrDone
+                  ? h("span", {class:"chip done"}, "✓ COMPLETED")
+                  : h("span", {class:"chip locked"}, "UPCOMING")
+              ),
               h("h3", {style:"font-size:1.4rem;margin:.3rem 0 .5rem"}, curr.title),
-              curr.description ? h("p", {style:"font-size:.95rem;line-height:1.6;color:var(--ink)"}, curr.description) : null,
-              h("span", {class:"mono", style:"display:block;margin-top:.4rem;color:var(--muted)"}, "Scheduled: " + fmt(curr.starts_at))
+              cleanDesc ? h("p", {style:"font-size:.95rem;line-height:1.6;color:var(--ink)"}, cleanDesc) : null,
+              h("span", {class:"mono", style:"display:block;margin-top:.4rem;color:var(--muted)"}, "Scheduled: " + (curr.starts_at ? fmt(curr.starts_at) : "Date to be announced soon"))
             ),
-            h("div", {class:"panel", style:"padding:1.1rem;background:var(--bg)"},
-              h("h4", {style:"margin-bottom:.4rem"}, "Recording & Replay"),
-              curr.recording_url
-                ? h("div", null,
-                    h("p", {style:"font-size:.88rem;color:var(--muted);margin-bottom:.8rem"}, "Unlisted session video is ready for enrolled students:"),
-                    h("a", {class:"btn", href:curr.recording_url, target:"_blank", rel:"noopener"}, "Watch Recording ↗")
-                  )
-                : h("p", {style:"font-size:.88rem;color:var(--muted)"}, "Recording link will be posted right here after the live class wraps up.")
-            ),
+
             subtopics.length ? h("div", {class:"panel", style:"padding:1.1rem;background:var(--bg)"},
               h("h4", {style:"margin-bottom:.5rem"}, "Key Topics & Tools Covered"),
               h("ul", {style:"margin:0;padding-left:1.2rem;line-height:1.7;font-size:.9rem"},
                 subtopics.map(function(st){ return h("li", null, st); })
               )
             ) : null,
-            h("div", {style:"display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding-top:.5rem"},
-              h("button", {
-                class: "btn " + (isCurrDone ? "success" : ""),
-                onclick: function(){ toggleSessionProgress(curr); }
-              }, isCurrDone ? "✓ Session Completed" : "◯ Mark Session Complete ▶"),
-              h("span", {class:"mono"}, isCurrDone ? "Nice work! Node marked complete on progression map." : "Click when you have finished this session.")
+
+            h("div", {class:"panel", style:"padding:1.1rem;background:var(--bg)"},
+              h("div", {style:"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.4rem;margin-bottom:.4rem"},
+                h("h4", null, "Recording & Replay"),
+                curr.recording_url ? h("span", {class:"chip done"}, "Available") : h("span", {class:"chip active"}, "COMING SOON")
+              ),
+              curr.recording_url
+                ? h("div", null,
+                    h("p", {style:"font-size:.88rem;color:var(--muted);margin-bottom:.8rem"}, "Unlisted session video is ready for enrolled students:"),
+                    h("a", {class:"btn", href:curr.recording_url, target:"_blank", rel:"noopener"}, "Watch Recording ↗")
+                  )
+                : h("p", {style:"font-size:.88rem;color:var(--muted)"}, "Video recordings are coming soon — replay link will be posted right here after the live class wraps up.")
             ),
+
+            // User endpoint: No student toggle! Session details are shown above.
+            // Option is provided strictly to the administrator:
+            isAdmin() ? h("div", {class:"panel", style:"padding:1rem;background:var(--panel);border:2px dashed var(--yellow)"},
+              h("div", {style:"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem"},
+                h("div", null,
+                  h("span", {class:"chip active", style:"margin-right:.5rem"}, "ADMINISTRATOR ONLY"),
+                  h("b", null, "Cohort Session Status: "),
+                  h("span", {class:"mono"}, isCurrDone ? "Marked Complete for all students ✓" : "Upcoming / In Progress")
+                ),
+                h("button", {
+                  class: "btn sm " + (isCurrDone ? "warn" : "success"),
+                  type: "button",
+                  onclick: function(){ toggleAdminSession(curr); }
+                }, isCurrDone ? "Reset to Upcoming" : "Mark Session Complete for All ▶")
+              )
+            ) : null,
+
             h("div", {style:"display:flex;gap:.8rem;flex-wrap:wrap;padding-top:.5rem;border-top:1px dashed var(--line)"},
-              h("button", {class:"btn sm line", onclick:function(){ location.hash = "workshop-" + wid + "/notes/" + sNum; }}, "📝 Open Study Notes for Session " + pad2(sNum) + " →"),
-              h("button", {class:"btn sm line", onclick:function(){ location.hash = "workshop-" + wid + "/doubts/" + sNum; }}, "❓ Ask a Doubt for Session " + pad2(sNum) + " →")
+              h("button", {class:"btn sm line", onclick:function(){ location.hash = "workshop-" + wid + "/notes/" + sNum; }}, "📝 Study Notes (Coming Soon) →"),
+              h("button", {class:"btn sm line", onclick:function(){ location.hash = "workshop-" + wid + "/doubts/" + sNum; }}, "❓ Doubts & Q&A (Coming Soon) →")
             )
           );
 
@@ -1051,7 +1074,7 @@ async function workshopView(wid, subview, sessionParam){
       }
 
       // ──────────────────────────────────────────
-      // VIEW 3: STUDY NOTES & SCRATCHPAD
+      // VIEW 3: STUDY NOTES & SCRATCHPAD (COMING SOON)
       // ──────────────────────────────────────────
       else if (subview === "notes") {
         if (!curr) {
@@ -1080,24 +1103,36 @@ async function workshopView(wid, subview, sessionParam){
             URL.revokeObjectURL(a.href);
           }
 
-          var subtopicsList = (curr.description || "Core concepts and exercises").split(/[·,\n]/).map(function(item){
+          var subtopicsList = (cleanSessionDesc(curr.description) || "Core concepts and exercises").split(/[·,\n]/).map(function(item){
             var clean = item.trim();
             return clean ? h("li", null, clean) : null;
           }).filter(Boolean);
 
           var notesBody = h("div", {style:"padding:1.4rem;display:grid;gap:1.2rem"},
-            h("div", null,
-              h("span", {class:"mono"}, "SESSION " + pad2(sNum) + " NOTES"),
-              h("h3", {style:"margin:.3rem 0 .4rem"}, curr.title + " · Study Notes"),
-              h("p", {style:"color:var(--muted);font-size:.88rem"}, "Official summary and your private auto-saving scratchpad.")
+            h("div", {style:"display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.6rem"},
+              h("div", null,
+                h("span", {class:"mono"}, "SESSION " + pad2(sNum) + " NOTES"),
+                h("h3", {style:"margin:.3rem 0 .4rem"}, curr.title + " · Study Notes"),
+                h("p", {style:"color:var(--muted);font-size:.88rem"}, "Official cheatsheets, slides, and your private scratchpad.")
+              ),
+              h("span", {class:"chip active", style:"font-size:.8rem;padding:.3rem .7rem"}, "⏳ COMING SOON")
+            ),
+            h("div", {class:"notice", style:"background:var(--panel);border-color:var(--yellow)"},
+              h("b", null, "Official Session Notes & Handouts: Coming Soon"),
+              h("p", {style:"color:var(--muted);font-size:.85rem;margin-top:.3rem"},
+                "Official instructor notes, curated cheatsheets, and starter templates will be provided here once Session " + pad2(sNum) + " begins. You can still use the local scratchpad below for your own personal notes."
+              )
             ),
             h("div", {class:"panel", style:"padding:1.1rem;background:var(--bg)"},
-              h("h4", {style:"margin-bottom:.5rem"}, "Official Cheatsheet & Key Takeaways"),
+              h("div", {style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem"},
+                h("h4", null, "Syllabus Preview & Key Topics"),
+                h("span", {class:"mono", style:"font-size:.75rem"}, "Session " + pad2(sNum))
+              ),
               h("ul", {style:"margin:0;padding-left:1.2rem;line-height:1.7;font-size:.9rem"}, subtopicsList)
             ),
             h("div", null,
               h("div", {style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;flex-wrap:wrap;gap:.4rem"},
-                h("h4", null, "Your Personal Study Scratchpad"),
+                h("h4", null, "Personal Study Scratchpad (Offline)"),
                 h("div", {style:"display:flex;align-items:center;gap:.6rem"},
                   noteStatus,
                   h("button", {class:"btn sm line", type:"button", onclick:downloadNotes}, "Download (.txt)")
@@ -1121,100 +1156,23 @@ async function workshopView(wid, subview, sessionParam){
       }
 
       // ──────────────────────────────────────────
-      // VIEW 4: DOUBTS & QUESTIONS WINDOW
+      // VIEW 4: DOUBTS & QUESTIONS (COMING SOON)
       // ──────────────────────────────────────────
       else if (subview === "doubts") {
         if (!curr) {
           subpageContent = h("div", {class:"panel"}, h("p", null, "No session selected."));
         } else {
-          var currDoubts = doubts.filter(function(d){ return d.session_id === curr.id; });
-
-          var doubtQInput = h("input", {type:"text", placeholder:"What are you stuck on? (e.g. Git push rejected, MCP error)", required:true});
-          var doubtDInput = h("textarea", {style:"min-height:70px;resize:vertical", placeholder:"Provide more context, paste the error message or terminal command..."});
-          var doubtImgInput = h("input", {type:"url", placeholder:"Optional image/screenshot URL (e.g. Imgur, Cloudinary, Drive link)"});
-          var doubtMsg = msgBox();
-
-          var doubtForm = h("form", {class:"panel", style:"padding:1.1rem;background:var(--bg)"},
-            h("h4", null, "Upload / Ask a Doubt for Session " + pad2(sNum)),
-            h("div", {class:"fld", style:"margin-top:.6rem"}, h("label", null, "Your Question *"), doubtQInput),
-            h("div", {class:"fld"}, h("label", null, "Error Details / Terminal Context"), doubtDInput),
-            h("div", {class:"fld"}, h("label", null, "Screenshot URL (Optional)"), doubtImgInput),
-            h("button", {class:"btn sm", type:"submit"}, "Submit Doubt ▶"),
-            doubtMsg
-          );
-
-          doubtForm.addEventListener("submit", async function(ev){
-            ev.preventDefault();
-            var q = doubtQInput.value.trim();
-            var d = doubtDInput.value.trim();
-            var img = doubtImgInput.value.trim();
-            if (!q) return;
-
-            setMsg(doubtMsg, "Submitting doubt...");
-            var newDoubt = {
-              workshop_id: wid,
-              session_id: curr.id,
-              user_id: uid,
-              student_name: (S.profile && S.profile.full_name) || S.user.email,
-              question: q,
-              details: d,
-              screenshot_url: img,
-              status: "open",
-              created_at: new Date().toISOString()
-            };
-
-            var dbSuccess = false;
-            try {
-              var insRes = await sb.from("doubts").insert(newDoubt);
-              if (!insRes.error) dbSuccess = true;
-            } catch(e){}
-
-            var localDoubts = [];
-            try {
-              localDoubts = JSON.parse(localStorage.getItem("start_here_doubts_" + wid) || "[]");
-            } catch(e){ localDoubts = []; }
-            localDoubts.unshift(newDoubt);
-            try {
-              localStorage.setItem("start_here_doubts_" + wid, JSON.stringify(localDoubts));
-            } catch(e){}
-
-            try { await refreshDoubts(); } catch(e){}
-            setMsg(doubtMsg, "Doubt submitted successfully! Mentors will review it.", false);
-            say("Doubt uploaded! ✓");
-            doubtQInput.value = "";
-            doubtDInput.value = "";
-            doubtImgInput.value = "";
-            renderWorkspace();
-          });
-
-          var doubtsListEl = h("div", {style:"margin-top:1.2rem"},
-            h("h4", null, "Submitted Doubts for Session " + pad2(sNum) + " (" + currDoubts.length + ")"),
-            currDoubts.length
-              ? currDoubts.map(function(dbItem){
-                  return h("div", {class:"doubt-item"},
-                    h("div", {style:"display:flex;justify-content:space-between;align-items:center"},
-                      h("b", null, dbItem.question),
-                      h("span", {class:"chip " + (dbItem.status === "answered" ? "done" : "active")}, dbItem.status === "answered" ? "ANSWERED ✓" : "OPEN 💬")
-                    ),
-                    dbItem.details ? h("p", {style:"font-size:.85rem;color:var(--muted)"}, dbItem.details) : null,
-                    dbItem.screenshot_url ? h("p", {style:"font-size:.8rem"}, h("a", {href:dbItem.screenshot_url, target:"_blank", class:"link"}, "View Screenshot ↗")) : null,
-                    dbItem.answer ? h("div", {style:"background:var(--panel);border:1px solid var(--green);border-radius:6px;padding:.5rem;margin-top:.4rem;font-size:.85rem"},
-                      h("b", {style:"color:var(--green)"}, "Mentor Reply: "), dbItem.answer
-                    ) : null,
-                    h("span", {class:"mono", style:"font-size:.7rem"}, (dbItem.student_name || "Student") + " · " + fmt(dbItem.created_at))
-                  );
-                })
-              : h("p", {style:"color:var(--muted);font-size:.85rem;margin-top:.5rem"}, "No doubts submitted yet for this session. Be the first to ask!")
-          );
-
-          var doubtsBody = h("div", {style:"padding:1.4rem;display:grid;gap:1.2rem"},
-            h("div", null,
-              h("span", {class:"mono"}, "SESSION " + pad2(sNum) + " Q&A"),
-              h("h3", {style:"margin:.3rem 0 .4rem"}, "Doubt Resolution Center"),
-              h("p", {style:"color:var(--muted);font-size:.88rem"}, "Stuck on a bug, setup issue, or concept? Post it below for mentor guidance.")
+          var doubtsBody = h("div", {style:"padding:1.8rem;text-align:center;display:grid;gap:1rem;justify-items:center"},
+            h("span", {style:"font-size:3rem"}, "❓"),
+            h("span", {class:"chip active", style:"font-size:.85rem;padding:.35rem .8rem"}, "COMING SOON"),
+            h("h3", {style:"font-size:1.5rem"}, "Doubt Resolution Center"),
+            h("p", {style:"color:var(--muted);max-width:520px;font-size:.95rem;line-height:1.6"},
+              "Live doubt submission and mentor Q&A will activate once Session " + pad2(sNum) + " (" + curr.title + ") kicks off! Keep your questions and bug screenshots handy to submit directly during and after class."
             ),
-            doubtForm,
-            doubtsListEl
+            h("div", {style:"display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap;margin-top:.8rem"},
+              h("button", {class:"btn sm line", onclick:function(){ location.hash = "workshop-" + wid + "/session/" + sNum; }}, "← Back to Session Details"),
+              h("button", {class:"btn sm line", onclick:function(){ location.hash = "workshop-" + wid + "/tree"; }}, "View Full Roadmap →")
+            )
           );
 
           var doubtsWin = h("div", {class:"win session-win", style:"margin-top:0"},
@@ -1231,29 +1189,36 @@ async function workshopView(wid, subview, sessionParam){
       }
 
       // ──────────────────────────────────────────
-      // VIEW 5: LIVE BROADCAST ROOM
+      // VIEW 5: LIVE BROADCAST ROOM (COMING SOON)
       // ──────────────────────────────────────────
       else if (subview === "live") {
-        var liveBody = h("div", {style:"padding:1.6rem;display:grid;gap:1.2rem"},
-          h("div", {style:"display:flex;align-items:center;gap:.7rem"},
+        var liveBody = h("div", {style:"padding:1.8rem;text-align:center;display:grid;gap:1rem;justify-items:center"},
+          h("span", {style:"font-size:3rem"}, live ? "📡" : "📺"),
+          h("div", {style:"display:flex;align-items:center;gap:.6rem"},
             live ? h("span", {class:"pulse-dot"}) : null,
-            h("h3", null, live ? "LIVE BROADCAST ACTIVE" : "BROADCAST STANDBY")
+            h("span", {class:"chip " + (live ? "done" : "active"), style:"font-size:.85rem;padding:.35rem .8rem"},
+              live ? "BROADCAST ACTIVE" : "COMING SOON"
+            )
           ),
-          h("p", {style:"font-size:.95rem;color:var(--ink);line-height:1.6"},
+          h("h3", {style:"font-size:1.5rem"}, live ? "Live Workshop Stream" : "Live Broadcast Room"),
+          h("p", {style:"color:var(--muted);max-width:540px;font-size:.95rem;line-height:1.6"},
             live
-              ? "A live workshop session is broadcasting right now! Join using the link below with your registered name."
-              : "No live stream is active at this moment. The meeting room link will automatically light up here 10 minutes before each class."
+              ? "A live workshop session is currently broadcasting! Join using the meeting link below with your registered student name."
+              : "Live sessions have not started yet. The meeting link (Google Meet / Zoom) will appear here 10 minutes prior to scheduled session time."
           ),
           live ? h("div", {style:"margin-top:.6rem"},
             h("a", {class:"btn success", href:live, target:"_blank", rel:"noopener", style:"font-size:1.05rem;padding:.85rem 1.4rem"}, "Join Live Stream ▶")
           ) : null,
-          h("div", {class:"panel", style:"padding:1.1rem;background:var(--bg);margin-top:.6rem"},
+          h("div", {class:"panel", style:"padding:1.1rem;background:var(--bg);margin-top:.8rem;max-width:540px;text-align:left"},
             h("h4", {style:"margin-bottom:.4rem"}, "Live Class Guidelines"),
             h("ul", {style:"margin:0;padding-left:1.2rem;line-height:1.7;font-size:.9rem"},
-              h("li", null, "Please keep your microphone muted when entering the session."),
-              h("li", null, "Use the '❓ Doubts' tab to submit questions or code issues in real-time."),
-              h("li", null, "All sessions are recorded and will appear in the Session Workspace afterward.")
+              h("li", null, "Join with your registered full name for attendance."),
+              h("li", null, "Keep microphones muted upon entry."),
+              h("li", null, "All sessions will be recorded and replays will be posted to the Session Workspace.")
             )
+          ),
+          h("div", {style:"margin-top:.6rem"},
+            h("button", {class:"btn sm line", onclick:function(){ location.hash = "workshop-" + wid + "/tree"; }}, "← Back to Roadmap")
           )
         );
 
@@ -1262,18 +1227,23 @@ async function workshopView(wid, subview, sessionParam){
       }
 
       // ──────────────────────────────────────────
-      // VIEW 6: CHALLENGES & COMPETITIONS
+      // VIEW 6: CHALLENGES & COMPETITIONS (COMING SOON)
       // ──────────────────────────────────────────
       else if (subview === "challenge") {
-        var compWindows = comps.map(function(c){
-          return compPanel(c, submissionsMap[c.id]);
-        });
         subpageContent = h("div", {class:"stack"},
-          h("div", null,
-            h("h3", null, "Workshop Projects & Challenges"),
-            h("p", {style:"color:var(--muted);font-size:.9rem;margin-top:.2rem"}, "Submit your projects to qualify for certificates and hackathon prizes.")
-          ),
-          compWindows.length ? compWindows : h("p", {style:"color:var(--muted)"}, "No active challenges for this workshop level yet.")
+          winCard("challenges.exe · Hackathons & Projects", false, [
+            h("div", {style:"padding:1.8rem;text-align:center;display:grid;gap:1rem;justify-items:center"},
+              h("span", {style:"font-size:3rem"}, "🏆"),
+              h("span", {class:"chip active", style:"font-size:.85rem;padding:.35rem .8rem"}, "COMING SOON"),
+              h("h3", {style:"font-size:1.5rem"}, "Workshop Projects & Challenges"),
+              h("p", {style:"color:var(--muted);max-width:540px;font-size:.95rem;line-height:1.6"},
+                "Project submission portals and hackathon challenges are coming soon! Project prompts will be announced during Level 01 sessions."
+              ),
+              h("div", {style:"margin-top:.8rem"},
+                h("button", {class:"btn sm line", onclick:function(){ location.hash = "workshop-" + wid + "/tree"; }}, "← Back to Roadmap")
+              )
+            )
+          ])
         );
       }
 
